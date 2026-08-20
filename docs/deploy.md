@@ -41,6 +41,16 @@ no hace nada más.
 **Settings** → **Secrets and variables** → **Actions** → **New repository
 secret**. Cómo obtener ese valor está en `docs/supabase.md` (sección 6).
 
+**Si ya ejecutaste una migración a mano en el SQL Editor** (como la
+`0001_init.sql` inicial) antes de tener este workflow funcionando, Supabase
+CLI no lo sabe y al hacer `supabase db push` intentará aplicarla de nuevo,
+fallando con "relation ... already exists". Para esos casos, lanza el
+workflow a mano: **Actions** → **Aplicar migraciones de Supabase** → **Run
+workflow** → rellena `repair_version` con el número de la migración (por
+ejemplo `0001`) → **Run workflow**. Eso marca esa versión como aplicada en
+el historial de Supabase sin volver a ejecutar su SQL. Déjalo vacío las
+próximas veces: así se comporta como siempre (aplica lo pendiente).
+
 ## `keepalive.yml` — evitar que Supabase pause el proyecto
 
 El plan gratuito de Supabase pausa proyectos tras 7 días sin actividad. Este

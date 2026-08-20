@@ -5,7 +5,16 @@ on:
     branches: [main]
     paths:
       - "supabase/migrations/**"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      repair_version:
+        description: >-
+          Version a marcar como ya aplicada SIN ejecutar su SQL (p. ej.
+          0001), para cuando esa migracion ya se corrio a mano en el SQL
+          Editor de Supabase. Dejar vacio para el comportamiento normal
+          (aplicar migraciones pendientes).
+        required: false
+        default: ""
 
 jobs:
   migrate:
@@ -34,6 +43,13 @@ jobs:
         with:
           version: latest
 
-      - name: Aplicar migraciones nuevas
+      - name: Aplicar migraciones nuevas o marcar una como ya aplicada
         if: steps.check_secret.outputs.found == 'true'
-        run: supabase db push --db-url "${{ secrets.SUPABASE_DB_URL }}"
+        env:
+          REPAIR_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.repair_version || '' }}
+        run: |
+          if [ -n "$REPAIR_VERSION" ]; then
+            supabase migration repair --status applied "$REPAIR_VERSION" --db-url "${{ secrets.SUPABASE_DB_URL }}"
+          else
+            supabase db push --db-url "${{ secrets.SUPABASE_DB_URL }}"
+          fi
