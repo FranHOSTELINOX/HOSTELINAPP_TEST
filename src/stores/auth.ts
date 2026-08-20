@@ -50,3 +50,19 @@ export async function signInWithEmail(email: string, password: string) {
 export async function signOut() {
   await supabase.auth.signOut()
 }
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const email = session.value?.user.email
+  if (!email) throw new Error('No hay sesión activa')
+
+  // Reautentica con la contraseña actual antes de cambiarla, para que no
+  // baste con tener la sesión abierta en el navegador de otra persona.
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email,
+    password: currentPassword,
+  })
+  if (reauthError) throw new Error('La contraseña actual no es correcta')
+
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+  if (updateError) throw updateError
+}
