@@ -76,7 +76,7 @@ npm run build   # build de producción real (falla si algo no compila)
 ## Dónde está cada cosa explicada con más detalle
 
 - `docs/supabase.md` — cómo ejecutar migraciones a mano, cómo funciona RLS
-  aquí, cómo configurar login con Google.
+  aquí, cómo crear usuarios como admin.
 - `docs/deploy.md` — qué hace cada workflow de GitHub Actions y qué secrets
   necesita.
 - `docs/data-model.md` — las 5 tablas, para qué sirve cada una y quién puede
@@ -85,6 +85,6 @@ npm run build   # build de producción real (falla si algo no compila)
 ## Configuración pendiente que NO puede hacer una sesión de Claude
 
 Cosas que requieren clicar en paneles web con la cuenta del dueño del
-proyecto (GitHub, Supabase, Google Cloud). Revisa `docs/deploy.md` y
+proyecto (GitHub, Supabase). Revisa `docs/deploy.md` y
 `docs/supabase.md` para el checklist actualizado; no asumas que ya están
 hechas solo porque el código las soporta.

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { signInWithEmail, signInWithGoogle } from '../stores/auth'
+import { signInWithEmail } from '../stores/auth'
 
 const email = ref('')
 const password = ref('')
@@ -16,15 +16,6 @@ async function handleEmailLogin() {
     error.value = err instanceof Error ? err.message : 'No se pudo iniciar sesión'
   } finally {
     loading.value = false
-  }
-}
-
-async function handleGoogleLogin() {
-  error.value = ''
-  try {
-    await signInWithGoogle()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'No se pudo iniciar sesión con Google'
   }
 }
 </script>
@@ -51,8 +42,6 @@ async function handleGoogleLogin() {
         {{ loading ? 'Entrando…' : 'Entrar' }}
       </button>
     </form>
-    <hr style="margin: 1rem 0" />
-    <button type="button" @click="handleGoogleLogin">Entrar con Google</button>
     <p v-if="error" style="color: crimson">{{ error }}</p>
   </div>
 </template>

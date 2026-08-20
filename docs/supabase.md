@@ -18,7 +18,7 @@ al principio.
 Nadie es `admin` por defecto, ni siquiera quien se registra primero — es una
 protección a propósito. Para dártelo a ti mismo la primera vez:
 
-1. Regístrate en la app (con email o con Google) para que se cree tu fila en
+1. Regístrate en la app (email y contraseña) para que se cree tu fila en
    `profiles`.
 2. En Supabase, **SQL Editor**, ejecuta (cambia el email):
 
@@ -40,26 +40,7 @@ crees las cuentas de tus usuarios, no que cualquiera se registre solo.
    **Email** → desactiva "Allow new users to sign up". El login con
    email/contraseña seguirá funcionando para las cuentas que tú crees.
 
-## 4. Login con Google
-
-Esto no se puede automatizar desde código porque requiere credenciales de
-Google Cloud. Pasos:
-
-1. En [Google Cloud Console](https://console.cloud.google.com/), crea (o
-   reutiliza) un proyecto → **APIs & Services** → **Credentials** → **Create
-   credentials** → **OAuth client ID** → tipo **Web application**.
-2. En **Authorized redirect URIs** añade la URL de callback que te muestra
-   Supabase en el siguiente paso (algo como
-   `https://zpacoqndlcirbsxguxvi.supabase.co/auth/v1/callback`).
-3. Copia el **Client ID** y el **Client secret**.
-4. En Supabase: **Authentication** → **Providers** → **Google** → actívalo y
-   pega esas dos credenciales.
-5. En **Authentication** → **URL Configuration**, añade la URL pública de tu
-   GitHub Pages a **Redirect URLs**, por ejemplo:
-   `https://<tu-usuario-de-github>.github.io/HOSTELINAPP_TEST/`
-   (con la barra final, y en modo hash el propio código añade `#/` después).
-
-## 5. El anon key es público a propósito
+## 4. El anon key es público a propósito
 
 `VITE_SUPABASE_ANON_KEY` viaja dentro del JavaScript que se descarga
 cualquiera que visite la web. Eso es normal en Supabase: el anon key solo
@@ -69,7 +50,7 @@ hace falta tratarlo como un secreto ultra sensible, aunque tampoco hay que
 publicar el **service role key** (ese sí es sensible y esta app no lo usa en
 ningún sitio).
 
-## 6. `SUPABASE_DB_URL` (para el workflow de migraciones)
+## 5. `SUPABASE_DB_URL` (para el workflow de migraciones)
 
 1. En Supabase: **Project Settings** → **Database** → **Connection string**
    → modo **URI**, con el campo "Use connection pooling" desactivado si te

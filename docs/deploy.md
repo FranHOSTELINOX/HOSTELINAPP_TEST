@@ -39,7 +39,7 @@ no hace nada más.
 
 **Configuración manual pendiente**: crear el secret `SUPABASE_DB_URL` en
 **Settings** → **Secrets and variables** → **Actions** → **New repository
-secret**. Cómo obtener ese valor está en `docs/supabase.md` (sección 6).
+secret**. Cómo obtener ese valor está en `docs/supabase.md` (sección 5).
 
 **Si ya ejecutaste una migración a mano en el SQL Editor** (como la
 `0001_init.sql` inicial) antes de tener este workflow funcionando, Supabase
