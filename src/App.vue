@@ -1,6 +1,21 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { watch } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { role, session, signOut } from './stores/auth'
+
+const route = useRoute()
+const router = useRouter()
+
+// Los cambios de sesión (login, logout, expiración) no siempre pasan por
+// una navegación de vue-router, así que hay que vigilarlos aparte y
+// mandar a la pantalla correcta cuando cambian.
+watch(session, (newSession) => {
+  if (!newSession && route.meta.requiresAuth) {
+    router.push({ name: 'login' })
+  } else if (newSession && route.name === 'login') {
+    router.push({ name: 'tareas' })
+  }
+})
 </script>
 
 <template>

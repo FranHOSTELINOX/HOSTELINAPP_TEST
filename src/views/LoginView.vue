@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { signInWithEmail } from '../stores/auth'
 
+const router = useRouter()
 const email = ref('')
 const password = ref('')
 const error = ref('')
@@ -12,6 +14,7 @@ async function handleEmailLogin() {
   loading.value = true
   try {
     await signInWithEmail(email.value, password.value)
+    await router.push({ name: 'tareas' })
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'No se pudo iniciar sesión'
   } finally {
