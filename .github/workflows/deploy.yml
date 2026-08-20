@@ -1,0 +1,46 @@
+name: Test y publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Comprobar tipos
+        run: npx vue-tsc -b
+
+      - name: Ejecutar tests
+        run: npm run test
+
+      - name: Construir el sitio
+        env:
+          # El anon key de Supabase está pensado para ser público (la
+          # seguridad real la da RLS), así que si no defines estos secrets
+          # en el repositorio se usan los valores por defecto del proyecto.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://zpacoqndlcirbsxguxvi.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYWNvcW5kbGNpcmJzeGd1eHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMzY2MDUsImV4cCI6MjEwMjgxMjYwNX0.6OOq5y0cyuZDtcK_8pZ4Qy26kL6TRaxSruJdeVA0Sis' }}
+        run: npm run build
+
+      - name: Publicar en la rama gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist

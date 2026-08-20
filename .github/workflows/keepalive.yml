@@ -1,0 +1,21 @@
+name: Mantener Supabase activo
+
+# El plan gratuito de Supabase pausa el proyecto tras 7 días sin actividad.
+# Esta consulta trivial cada 3 días evita esa pausa.
+on:
+  schedule:
+    - cron: "0 6 */3 * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consulta trivial a la API de Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://zpacoqndlcirbsxguxvi.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYWNvcW5kbGNpcmJzeGd1eHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMzY2MDUsImV4cCI6MjEwMjgxMjYwNX0.6OOq5y0cyuZDtcK_8pZ4Qy26kL6TRaxSruJdeVA0Sis' }}
+        run: |
+          curl --fail --silent --show-error \
+            "$SUPABASE_URL/rest/v1/" \
+            -H "apikey: $SUPABASE_ANON_KEY"

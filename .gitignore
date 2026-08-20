@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist-ts/
+dist-ts-node/
+.env.local
+*.local
+.DS_Store

@@ -1,0 +1,39 @@
+name: Aplicar migraciones de Supabase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+  workflow_dispatch: {}
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Comprobar si existe el secret SUPABASE_DB_URL
+        id: check_secret
+        run: |
+          if [ -z "${{ secrets.SUPABASE_DB_URL }}" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Avisar de que falta el secret (no falla el workflow)
+        if: steps.check_secret.outputs.found == 'false'
+        run: |
+          echo "::warning::El secret SUPABASE_DB_URL no está configurado todavía. Este workflow no aplicará ninguna migración hasta que lo añadas en Settings > Secrets and variables > Actions. Consulta docs/supabase.md para ver cómo obtenerlo."
+
+      - name: Instalar Supabase CLI
+        if: steps.check_secret.outputs.found == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Aplicar migraciones nuevas
+        if: steps.check_secret.outputs.found == 'true'
+        run: supabase db push --db-url "${{ secrets.SUPABASE_DB_URL }}"

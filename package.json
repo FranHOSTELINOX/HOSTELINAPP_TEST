@@ -1,0 +1,28 @@
+{
+  "name": "hostelinapp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "vue-tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "vue": "^3.4.38",
+    "vue-router": "^4.4.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.2",
+    "@types/node": "^22.5.4",
+    "@vue/tsconfig": "^0.5.1",
+    "jsdom": "^25.0.0",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.2",
+    "vitest": "^2.0.5",
+    "vue-tsc": "^2.1.4"
+  }
+}
