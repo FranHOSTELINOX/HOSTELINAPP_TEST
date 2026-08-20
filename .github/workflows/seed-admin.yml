@@ -1,0 +1,46 @@
+name: Crear usuario administrador (uso puntual)
+
+# Workflow de arranque: crea una cuenta en Supabase Auth via la API oficial
+# de signup, confirma su email y le asigna role=admin en profiles. Se lanza
+# solo a mano (workflow_dispatch), nunca en cada push. Pensado para dar de
+# alta al primer administrador; bórralo si ya no lo necesitas.
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Email de la nueva cuenta administradora"
+        required: true
+      password:
+        description: "Contraseña inicial (la persona puede cambiarla luego desde la app)"
+        required: true
+
+jobs:
+  seed_admin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ocultar la contraseña en los logs
+        run: echo "::add-mask::${{ github.event.inputs.password }}"
+
+      - name: Crear la cuenta via la API de Supabase Auth
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://zpacoqndlcirbsxguxvi.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYWNvcW5kbGNpcmJzeGd1eHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMzY2MDUsImV4cCI6MjEwMjgxMjYwNX0.6OOq5y0cyuZDtcK_8pZ4Qy26kL6TRaxSruJdeVA0Sis' }}
+          ADMIN_EMAIL: ${{ github.event.inputs.email }}
+          ADMIN_PASSWORD: ${{ github.event.inputs.password }}
+        run: |
+          curl --fail --silent --show-error -X POST "$SUPABASE_URL/auth/v1/signup" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
+            -o /dev/null
+
+      - name: Instalar cliente de PostgreSQL
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Confirmar el email y asignar el rol admin
+        env:
+          ADMIN_EMAIL: ${{ github.event.inputs.email }}
+        run: |
+          psql "${{ secrets.SUPABASE_DB_URL }}" -v ON_ERROR_STOP=1 \
+            -c "update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()) where email = '$ADMIN_EMAIL';" \
+            -c "update public.profiles set role = 'admin' where email = '$ADMIN_EMAIL';"
