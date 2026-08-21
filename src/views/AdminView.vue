@@ -13,7 +13,7 @@ const message = ref('')
 const newTask = ref({ title: '', description: '', assigned_to: '', due_date: '' })
 const newEvent = ref({ title: '', description: '', start_at: '', assigned_to: '' })
 const newNotice = ref({ title: '', body: '', assigned_to: '' })
-const newUser = ref({ full_name: '', email: '', password: '', puesto: '' })
+const newUser = ref({ full_name: '', email: '', password: '', puesto: '', isAdmin: false })
 const creatingUser = ref(false)
 
 async function loadUsers() {
@@ -102,13 +102,14 @@ async function createUser() {
         password: newUser.value.password,
         full_name: newUser.value.full_name,
         puesto: newUser.value.puesto,
+        role: newUser.value.isAdmin ? 'admin' : 'user',
       },
     })
     if (fnError) throw fnError
     if (data?.error) throw new Error(data.error)
 
-    message.value = 'Usuario creado.'
-    newUser.value = { full_name: '', email: '', password: '', puesto: '' }
+    message.value = newUser.value.isAdmin ? 'Administrador creado.' : 'Usuario creado.'
+    newUser.value = { full_name: '', email: '', password: '', puesto: '', isAdmin: false }
     await loadUsers()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'No se pudo crear el usuario'
@@ -141,6 +142,11 @@ onMounted(loadUsers)
       />
       <br />
       <input v-model="newUser.puesto" placeholder="Puesto (p. ej. Recepción)" />
+      <br />
+      <label>
+        <input v-model="newUser.isAdmin" type="checkbox" />
+        Es administrador (puede crear tareas, usuarios, calendario y avisos)
+      </label>
       <br />
       <button type="submit" :disabled="creatingUser">
         {{ creatingUser ? 'Creando…' : 'Crear usuario' }}

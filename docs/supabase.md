@@ -32,12 +32,13 @@ El pedido era "sin registro abierto complicado": lo normal es que **tú**
 crees las cuentas de tus usuarios, no que cualquiera se registre solo.
 
 **Forma normal, desde la app**: entra como admin → menú **Administración** →
-"Nuevo usuario" → rellena nombre, email, contraseña y puesto → "Crear
+"Nuevo usuario" → rellena nombre, email, contraseña y puesto → marca "Es
+administrador" si quieres que la cuenta nueva también sea admin → "Crear
 usuario". Por debajo llama a la Edge Function `admin-create-user`, que crea
 la cuenta ya confirmada (la persona puede entrar directamente, sin
-confirmar ningún email) y rellena su perfil. Necesita que el secret
-`SUPABASE_ACCESS_TOKEN` esté configurado (sección 6) y la función desplegada;
-si no, el botón dará error.
+confirmar ningún email) y rellena su perfil, incluido el rol. Necesita que
+el secret `SUPABASE_ACCESS_TOKEN` esté configurado (sección 6) y la función
+desplegada; si no, el botón dará error.
 
 **Alternativa manual, sin pasar por la app**: en Supabase: **Authentication**
 → **Users** → **Add user** (marca "Auto confirm user"). En cuanto exista en

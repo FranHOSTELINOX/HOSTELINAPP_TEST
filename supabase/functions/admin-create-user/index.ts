@@ -1,8 +1,8 @@
 // Edge Function: admin-create-user
 //
 // Crea una cuenta nueva (email + contraseña), la confirma y rellena su
-// perfil (nombre, puesto). Solo la puede llamar alguien que ya está
-// logueado como admin: se comprueba con su propio token antes de usar la
+// perfil (nombre, puesto, rol admin/user). Solo la puede llamar alguien
+// que ya está logueado como admin: se comprueba con su propio token antes de usar la
 // service role key, que solo existe aquí (Supabase la inyecta sola en cada
 // función; nunca viaja al navegador).
 //
@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
     const password = typeof body?.password === 'string' ? body.password : ''
     const fullName = typeof body?.full_name === 'string' ? body.full_name.trim() : ''
     const puesto = typeof body?.puesto === 'string' ? body.puesto.trim() : ''
+    const role = body?.role === 'admin' ? 'admin' : 'user'
 
     if (!email || !password) {
       return json({ error: 'Email y contraseña son obligatorios' }, 400)
@@ -87,6 +88,7 @@ Deno.serve(async (req) => {
       .update({
         full_name: fullName || null,
         puesto: puesto || null,
+        role,
       })
       .eq('id', created.user.id)
 
