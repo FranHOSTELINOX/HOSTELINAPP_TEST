@@ -78,6 +78,13 @@ Eventos de calendario, los crea el admin.
 **Quién ve/edita qué**: todos ven los eventos con `assigned_to = null` más los
 suyos propios; el admin ve y gestiona todos. Solo el admin crea/edita/borra.
 
+**Cuidado con la hora**: `start_at` y `end_at` son `timestamptz`. Un
+`<input type="datetime-local">` da la hora local sin zona (`2026-09-10T08:00`);
+si se manda así tal cual, Postgres la interpreta en UTC y el evento aparece dos
+horas más tarde en verano. Hay que convertir con `new Date(local).toISOString()`
+al guardar y volver a hora local al rellenar el formulario (ver `aInputLocal` y
+`aISO` en `src/views/AdminView.vue`).
+
 ## `notices`
 
 Avisos/textos que el admin publica para que los usuarios "consulten".
