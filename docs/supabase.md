@@ -31,14 +31,25 @@ protección a propósito. Para dártelo a ti mismo la primera vez:
 El pedido era "sin registro abierto complicado": lo normal es que **tú**
 crees las cuentas de tus usuarios, no que cualquiera se registre solo.
 
-1. En Supabase: **Authentication** → **Users** → **Add user** (puedes crear
-   el usuario con email + contraseña provisional, o invitarlo por email).
-2. En cuanto exista en `auth.users`, el trigger crea su fila en `profiles`
-   automáticamente con `role = 'user'`.
-3. Si quieres cerrar el registro público (que nadie pueda darse de alta
-   solo desde el formulario de la app): **Authentication** → **Providers** →
-   **Email** → desactiva "Allow new users to sign up". El login con
-   email/contraseña seguirá funcionando para las cuentas que tú crees.
+**Forma normal, desde la app**: entra como admin → menú **Administración** →
+"Nuevo usuario" → rellena nombre, email, contraseña y puesto → "Crear
+usuario". Por debajo llama a la Edge Function `admin-create-user`, que crea
+la cuenta ya confirmada (la persona puede entrar directamente, sin
+confirmar ningún email) y rellena su perfil. Necesita que el secret
+`SUPABASE_ACCESS_TOKEN` esté configurado (sección 6) y la función desplegada;
+si no, el botón dará error.
+
+**Alternativa manual, sin pasar por la app**: en Supabase: **Authentication**
+→ **Users** → **Add user** (marca "Auto confirm user"). En cuanto exista en
+`auth.users`, el trigger crea su fila en `profiles` automáticamente con
+`role = 'user'`; el `puesto` se quedará vacío hasta que alguien lo edite a
+mano en la tabla.
+
+**Cerrar el registro público** (que nadie pueda darse de alta solo desde el
+formulario de la app, aunque la app actual no ofrece ese formulario):
+**Authentication** → **Providers** → **Email** → desactiva "Allow new users
+to sign up". El login con email/contraseña seguirá funcionando para las
+cuentas que tú crees.
 
 ## 4. El anon key es público a propósito
 
@@ -47,8 +58,10 @@ cualquiera que visite la web. Eso es normal en Supabase: el anon key solo
 identifica al proyecto, no da permisos por sí mismo — los permisos reales los
 deciden las políticas RLS de `supabase/migrations/0001_init.sql`. Por eso no
 hace falta tratarlo como un secreto ultra sensible, aunque tampoco hay que
-publicar el **service role key** (ese sí es sensible y esta app no lo usa en
-ningún sitio).
+publicar el **service role key** (ese sí es sensible). La única pieza que lo
+usa es la Edge Function `admin-create-user` — y ahí es Supabase quien se lo
+inyecta solo al ejecutarla; nunca pasa por el repositorio, por GitHub ni por
+el navegador.
 
 ## 5. `SUPABASE_DB_URL` (para el workflow de migraciones)
 
@@ -60,3 +73,20 @@ ningún sitio).
    **Database password** → **Reset database password**).
 3. Guarda esa URL completa como secret `SUPABASE_DB_URL` en GitHub (ver
    `docs/deploy.md`).
+
+## 6. `SUPABASE_ACCESS_TOKEN` (para desplegar las Edge Functions)
+
+Este token es de tu cuenta de Supabase (no de un proyecto concreto), y es lo
+que necesita el workflow `deploy-functions.yml` para poder subir la función
+`admin-create-user` — la que usa el botón "Nuevo usuario" del panel de
+administración.
+
+1. Entra en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens).
+2. **Generate new token** → ponle un nombre (p. ej. "GitHub Actions
+   HostelinApp") → **Generate token**.
+3. Cópialo (solo se muestra una vez) y guárdalo como secret
+   `SUPABASE_ACCESS_TOKEN` en GitHub (ver `docs/deploy.md`).
+
+Con esto configurado, cada vez que cambie algo en `supabase/functions/` se
+desplegará solo. Mientras no lo configures, el botón "Nuevo usuario" de la
+app dará un error de conexión (la función no estará publicada todavía).

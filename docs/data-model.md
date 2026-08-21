@@ -14,13 +14,25 @@ se registra en Supabase Auth (`handle_new_user`).
 | email      | copiado de auth al registrarse            |
 | full_name  | opcional                                  |
 | role       | `admin` o `user` (por defecto `user`)     |
+| puesto     | texto libre, p. ej. "Recepción" (opcional)|
 
 **Quién ve/edita qué**: cada persona ve y edita su propia fila; el admin ve y
-edita todas. Un trigger (`prevent_role_escalation`) impide que alguien que no
-sea admin se cambie su propio `role`.
+edita todas. Un trigger (`prevent_role_escalation`) impide que alguien
+autenticado que no sea admin se cambie su propio `role` (una conexión
+directa a la base de datos, como la que usan las migraciones, no cuenta como
+"alguien autenticado" y no la bloquea).
 
 **Importante**: nadie es `admin` por defecto, ni siquiera el primer usuario.
 Hay que ponerlo a mano la primera vez (ver `docs/supabase.md`).
+
+**Cómo se crean los usuarios**: el admin los da de alta desde la propia app
+(pantalla Administración → "Nuevo usuario"), que llama a la Edge Function
+`admin-create-user` (`supabase/functions/admin-create-user/`). Esa función es
+la única pieza de la app con permisos de administrador sobre Supabase Auth
+(la service role key), y Supabase se la inyecta sola — nunca viaja al
+navegador. Comprueba primero que quien llama ya es admin, crea la cuenta,
+confirma su email y rellena `full_name`/`puesto`. Ver `docs/deploy.md` para
+cómo se despliega esa función.
 
 ## `tasks`
 

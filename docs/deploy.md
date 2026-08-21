@@ -1,6 +1,6 @@
 # Despliegue y GitHub Actions
 
-Hay tres workflows en `.github/workflows/`.
+Hay cuatro workflows en `.github/workflows/`.
 
 ## `deploy.yml` — test + build + publicar en GitHub Pages
 
@@ -51,6 +51,20 @@ ejemplo `0001`) → **Run workflow**. Eso marca esa versión como aplicada en
 el historial de Supabase sin volver a ejecutar su SQL. Déjalo vacío las
 próximas veces: así se comporta como siempre (aplica lo pendiente).
 
+## `deploy-functions.yml` — desplegar las Edge Functions
+
+Se dispara cuando un push a `main` toca algo dentro de
+`supabase/functions/`. Usa la Supabase CLI para desplegar cada función que
+haya ahí (por ahora, `admin-create-user`, la que usa la pantalla de
+Administración para crear usuarios nuevos). Igual que `migrations.yml`, si
+falta el secret que necesita, **no falla**: solo avisa.
+
+**Configuración manual pendiente**: crear el secret `SUPABASE_ACCESS_TOKEN`
+en **Settings** → **Secrets and variables** → **Actions** → **New repository
+secret**. Cómo generarlo está en `docs/supabase.md` (sección 6). Hasta que lo
+añadas, el botón "Nuevo usuario" del panel de administración no funcionará
+(la función a la que llama no estará desplegada).
+
 ## `keepalive.yml` — evitar que Supabase pause el proyecto
 
 El plan gratuito de Supabase pausa proyectos tras 7 días sin actividad. Este
@@ -73,5 +87,6 @@ de inactividad) sobra margen de sobra; no hace falta nada más preciso.
 | Secret                     | Obligatorio | Para qué                                      |
 |-----------------------------|:-----------:|------------------------------------------------|
 | `SUPABASE_DB_URL`           | Sí, para que `migrations.yml` haga algo | aplicar migraciones SQL automáticamente |
+| `SUPABASE_ACCESS_TOKEN`     | Sí, para que `deploy-functions.yml` haga algo | desplegar las Edge Functions (crear usuarios desde el panel de admin) |
 | `VITE_SUPABASE_URL`         | No (tiene valor por defecto) | build del frontend y keepalive |
 | `VITE_SUPABASE_ANON_KEY`    | No (tiene valor por defecto) | build del frontend y keepalive |

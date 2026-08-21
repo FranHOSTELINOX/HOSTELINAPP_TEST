@@ -1,0 +1,47 @@
+name: Desplegar Edge Functions de Supabase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+  workflow_dispatch: {}
+
+jobs:
+  deploy_functions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Comprobar si existe el secret SUPABASE_ACCESS_TOKEN
+        id: check_secret
+        run: |
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Avisar de que falta el secret (no falla el workflow)
+        if: steps.check_secret.outputs.found == 'false'
+        run: |
+          echo "::warning::El secret SUPABASE_ACCESS_TOKEN no está configurado todavía. Este workflow no puede desplegar las Edge Functions hasta que lo añadas en Settings > Secrets and variables > Actions. Consulta docs/supabase.md para ver cómo generarlo."
+
+      - name: Instalar Supabase CLI
+        if: steps.check_secret.outputs.found == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Desplegar cada función
+        if: steps.check_secret.outputs.found == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF || 'zpacoqndlcirbsxguxvi' }}
+        run: |
+          for dir in supabase/functions/*/; do
+            name=$(basename "$dir")
+            echo "Desplegando $name..."
+            supabase functions deploy "$name" --project-ref "$PROJECT_REF"
+          done

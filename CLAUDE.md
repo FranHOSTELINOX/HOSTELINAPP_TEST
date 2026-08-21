@@ -22,7 +22,11 @@ esas tareas, **registran tiempos** trabajados, y consultan un **calendario** y
   actualizarse juntos.
 - **Backend**: Supabase (Postgres + Auth + API REST autogenerada). No hay
   servidor propio: el frontend habla directo con Supabase usando
-  `@supabase/supabase-js` y el anon key.
+  `@supabase/supabase-js` y el anon key. La única excepción son las
+  operaciones que necesitan permisos de administrador (hoy, crear usuarios
+  nuevos): esas viven en Edge Functions de Supabase
+  (`supabase/functions/`), la única pieza con acceso a la service role key,
+  que Supabase inyecta sola y nunca sale de ahí.
 - **Seguridad**: Row Level Security (RLS) activado en **todas** las tablas.
   El anon key es público a propósito (así funciona Supabase); la seguridad
   real la da RLS, no el secreto del key.
@@ -39,6 +43,7 @@ src/
   views/                  una vista por pantalla (Login, Tasks, TimeEntries,
                            Calendar, Notices, Admin)
 supabase/migrations/      SQL versionado, en orden (0001_, 0002_, ...)
+supabase/functions/       Edge Functions (una carpeta por función)
 .github/workflows/        CI/CD (ver docs/deploy.md)
 docs/                     documentación ampliada, léela si vas a tocar algo
 test/                     tests de Vitest
@@ -54,6 +59,13 @@ test/                     tests de Vitest
   `src/lib/database.types.ts` (Row/Insert/Update/Relationships por tabla). Si
   algún día usas la Supabase CLI localmente, `supabase gen types typescript`
   lo genera solo.
+- **Operaciones con permisos de administrador** (crear usuarios, y
+  cualquier otra cosa que necesite la service role key): van en una Edge
+  Function nueva dentro de `supabase/functions/`, nunca en el frontend.
+  Cada función debe comprobar ella misma que quien la llama es admin antes
+  de hacer nada (ver `supabase/functions/admin-create-user/index.ts` como
+  ejemplo). Se despliegan solas con `.github/workflows/deploy-functions.yml`
+  al hacer push si tocas esa carpeta.
 - **Vistas nuevas**: añádelas en `src/views/`, regístralas en
   `src/router/index.ts` con `meta.requiresAuth` (y `meta.requiresAdmin` si
   solo las usa el administrador).

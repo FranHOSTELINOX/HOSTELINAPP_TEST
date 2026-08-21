@@ -14,6 +14,7 @@ export interface Database {
           email: string
           full_name: string | null
           role: Role
+          puesto: string | null
           created_at: string
         }
         Insert: {
@@ -21,10 +22,12 @@ export interface Database {
           email: string
           full_name?: string | null
           role?: Role
+          puesto?: string | null
         }
         Update: {
           full_name?: string | null
           role?: Role
+          puesto?: string | null
         }
         Relationships: []
       }
