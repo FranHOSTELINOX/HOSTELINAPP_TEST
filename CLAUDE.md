@@ -10,6 +10,40 @@ proyecto) crea usuarios, les asigna **tareas**, ellos **marcan** el estado de
 esas tareas, **registran tiempos** trabajados, y consultan un **calendario** y
 **avisos** que publica el administrador.
 
+## Git y GitHub los llevas tú, no el dueño
+
+**El dueño del proyecto no usa GitHub y lo tiene delegado entero en Claude.**
+No le pidas que fusione ramas, que abra un pull request ni que le dé a ningún
+botón: no sabe hacerlo y no quiere. Un cambio no está terminado cuando
+funciona en tu máquina, sino cuando **está publicado y en vivo**.
+
+Al acabar cualquier cambio, llévalo hasta el final tú mismo:
+
+1. Pasa las comprobaciones (ver "Antes de dar por terminado un cambio").
+2. `git commit` con mensaje corto en español.
+3. `git push` a la rama de trabajo que te hayan asignado en la sesión.
+4. **Fusiona en `main` y haz push.** Eso es lo que publica de verdad: un push
+   a `main` dispara `deploy.yml`, que repite los tests y actualiza
+   `gh-pages`, que es el sitio en vivo.
+5. Espera a que el workflow acabe en verde antes de decir que está hecho.
+
+Nada de dejar el trabajo aparcado en una rama esperando aprobación, y nada de
+pull requests salvo que te los pida expresamente.
+
+Antes de fusionar, mira qué workflows va a disparar tu cambio y avísale si
+toca algo más que la web:
+
+| Si tocas…                | Se dispara             | Qué hace                                          |
+|--------------------------|------------------------|---------------------------------------------------|
+| cualquier cosa           | `deploy.yml`           | test + build + publica en `gh-pages`              |
+| `supabase/migrations/`   | `migrations.yml`       | aplica el SQL nuevo **a la base de datos de verdad** |
+| `supabase/functions/`    | `deploy-functions.yml` | despliega las Edge Functions                      |
+
+Lo único que sigue sin poder hacer una sesión de Claude es lo que exige
+entrar con su cuenta a un panel web (secrets de GitHub, ajustes de Supabase).
+Eso sí hay que pedírselo, y explicándole paso a paso dónde hacer clic. Ver la
+última sección.
+
 ## Montaje técnico (no cambiar sin que te lo pidan)
 
 - **Frontend**: Vue 3 + TypeScript + Vite, en la raíz del repo (no en una
