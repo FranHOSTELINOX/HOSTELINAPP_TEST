@@ -471,6 +471,7 @@ onMounted(loadUsers)
   gap: 0.4375rem;
   flex: 1;
   justify-content: center;
+  min-height: 38px;
   padding: 0.5rem 0.75rem;
   font-family: inherit;
   font-size: 0.8125rem;
@@ -507,6 +508,12 @@ onMounted(loadUsers)
   align-items: start;
 }
 
+/* Sin esto, un hijo que no sabe encogerse (una fila con pastillas que no
+   parten) estira la columna entera y saca la página de la pantalla. */
+.columnas > * {
+  min-width: 0;
+}
+
 @media (min-width: 960px) {
   .columnas {
     grid-template-columns: 1fr 1fr;
@@ -532,9 +539,15 @@ onMounted(loadUsers)
 .usuario {
   display: flex;
   align-items: center;
-  gap: 0.6875rem;
+  /* En pantalla estrecha las pastillas bajan a otra línea en vez de empujar. */
+  flex-wrap: wrap;
+  gap: 0.375rem 0.6875rem;
   padding: 0.6875rem 1.25rem;
   border-bottom: 1px solid var(--border-soft);
+}
+
+.usuario .spacer {
+  min-width: 0;
 }
 
 .usuario:last-child {

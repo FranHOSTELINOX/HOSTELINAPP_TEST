@@ -323,7 +323,8 @@ onMounted(loadTasks)
   display: inline-flex;
   align-items: center;
   gap: 0.4375rem;
-  padding: 0.4375rem 0.75rem;
+  min-height: 34px;
+  padding: 0.4375rem 0.8125rem;
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -441,8 +442,10 @@ onMounted(loadTasks)
 .segmento {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.3125rem;
-  padding: 0.375rem 0.625rem;
+  min-height: 36px;
+  padding: 0.375rem 0.6875rem;
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -485,7 +488,7 @@ onMounted(loadTasks)
   }
   .segmento {
     flex: 1;
-    justify-content: center;
+    min-height: 40px;
     padding: 0.4375rem 0.375rem;
   }
 }

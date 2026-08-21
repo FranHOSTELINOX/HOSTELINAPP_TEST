@@ -171,8 +171,10 @@ onMounted(async () => {
 .cambio-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.375rem;
-  padding: 0.375rem 0.6875rem;
+  min-height: 36px;
+  padding: 0.375rem 0.75rem;
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;

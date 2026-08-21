@@ -122,9 +122,16 @@ La app se usa mucho desde el móvil, en el taller. Por eso:
 
 - En pantalla ancha hay barra lateral; en el móvil, barra arriba y **pestañas
   abajo** (donde llega el pulgar).
-- Los botones y las zonas de tocar no bajan de 40 px de alto.
+- Los botones normales (`btn`) no bajan de 40 px de alto. Los controles
+  compactos —filtros, pestañas, el selector de estado— no bajan de 34 px, y
+  el selector de estado sube a 40 px en móvil, que es donde se toca con el
+  dedo (a veces con guantes).
 - Las listas largas (filtros, pestañas) se deslizan de lado en vez de
   amontonarse.
+- Cuidado con las rejillas (`display: grid`): si un hijo no sabe encogerse
+  —una fila con pastillas que no parten, por ejemplo— estira la columna
+  entera y saca la página de la pantalla. Se cura con `min-width: 0` en los
+  hijos y dejando que las pastillas bajen de línea (`flex-wrap: wrap`).
 
 Cuando toques una pantalla, pruébala estrechando la ventana del navegador
 hasta el tamaño de un móvil antes de darla por buena.
