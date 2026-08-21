@@ -61,6 +61,34 @@ export function dentroDeHorario(fecha: Date): boolean {
   return tramosDelDia(fecha).some((t) => m >= t.desde && m < t.hasta)
 }
 
+/** Un tramo con sus horas ya troceadas, listas para un desplegable. */
+export interface Franja {
+  etiqueta: string
+  horas: string[]
+}
+
+/**
+ * El horario del día partido en intervalos (15 min por defecto), agrupado por
+ * tramo, para ofrecerlo en los desplegables de "desde" y "hasta".
+ *
+ * Incluye la hora de cierre de cada tramo, que hace falta para poder decir
+ * "hasta las 15:00".
+ */
+export function franjasDelDia(fecha: Date, pasoMinutos = 15): Franja[] {
+  return tramosDelDia(fecha).map((tramo) => {
+    const horas: string[] = []
+    for (let m = tramo.desde; m <= tramo.hasta; m += pasoMinutos) {
+      horas.push(minutosAHora(m))
+    }
+    return { etiqueta: tramo.desde < 14 * 60 ? 'Mañana' : 'Tarde', horas }
+  })
+}
+
+/** Todas las horas del día en una sola lista, sin agrupar por tramo. */
+export function horasDelDia(fecha: Date, pasoMinutos = 15): string[] {
+  return franjasDelDia(fecha, pasoMinutos).flatMap((f) => f.horas)
+}
+
 /** Minutos de trabajo previstos ese día (600 de lunes a viernes, 300 el sábado). */
 export function minutosPrevistos(fecha: Date): number {
   return tramosDelDia(fecha).reduce((suma, t) => suma + (t.hasta - t.desde), 0)

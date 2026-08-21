@@ -3,6 +3,8 @@ import {
   avisoDeHorario,
   dentroDeHorario,
   describeHorario,
+  franjasDelDia,
+  horasDelDia,
   minutosAHora,
   minutosPrevistos,
   msDentroDeHorario,
@@ -130,6 +132,61 @@ describe('msDentroDeHorario', () => {
   it('aguanta un registro que cruza la medianoche', () => {
     // Del sábado 10:00 al domingo 10:00: solo cuenta 10:00–11:30 del sábado.
     expect(msDentroDeHorario(sabado(10), domingo(10))).toBe(1.5 * HORA)
+  })
+})
+
+describe('franjasDelDia', () => {
+  it('parte el día entre semana en mañana y tarde', () => {
+    const franjas = franjasDelDia(lunes(9))
+    expect(franjas).toHaveLength(2)
+    expect(franjas[0].etiqueta).toBe('Mañana')
+    expect(franjas[1].etiqueta).toBe('Tarde')
+  })
+
+  it('trocea en intervalos de 15 minutos', () => {
+    const [manana] = franjasDelDia(lunes(9))
+    expect(manana.horas.slice(0, 5)).toEqual(['07:00', '07:15', '07:30', '07:45', '08:00'])
+  })
+
+  it('incluye la hora de cierre de cada tramo', () => {
+    const [manana, tarde] = franjasDelDia(lunes(9))
+    expect(manana.horas.at(-1)).toBe('15:00')
+    expect(tarde.horas[0]).toBe('16:00')
+    expect(tarde.horas.at(-1)).toBe('18:00')
+  })
+
+  it('respeta las medias horas del sábado', () => {
+    const [manana] = franjasDelDia(sabado(9))
+    expect(manana.horas[0]).toBe('06:30')
+    expect(manana.horas[1]).toBe('06:45')
+    expect(manana.horas.at(-1)).toBe('11:30')
+  })
+
+  it('el domingo no ofrece ninguna hora', () => {
+    expect(franjasDelDia(domingo(9))).toHaveLength(0)
+    expect(horasDelDia(domingo(9))).toHaveLength(0)
+  })
+
+  it('admite otro paso', () => {
+    const [manana] = franjasDelDia(lunes(9), 30)
+    expect(manana.horas.slice(0, 3)).toEqual(['07:00', '07:30', '08:00'])
+  })
+})
+
+describe('horasDelDia', () => {
+  it('junta los dos tramos en una sola lista ordenada', () => {
+    const horas = horasDelDia(lunes(9))
+    // 07:00–15:00 son 33 huecos, 16:00–18:00 son 9. En total 42.
+    expect(horas).toHaveLength(42)
+    expect(horas[0]).toBe('07:00')
+    expect(horas.at(-1)).toBe('18:00')
+    // No hay nada en el rato de la comida.
+    expect(horas).not.toContain('15:15')
+    expect(horas).not.toContain('15:45')
+  })
+
+  it('el sábado da 21 huecos', () => {
+    expect(horasDelDia(sabado(9))).toHaveLength(21)
   })
 })
 

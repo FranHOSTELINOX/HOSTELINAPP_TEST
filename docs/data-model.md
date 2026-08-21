@@ -104,11 +104,24 @@ no deja fichar a un usuario normal sin elegir proyecto y producto. A nivel de
 base de datos la columna es opcional, para no romper los registros que ya
 existían antes de esta pantalla.
 
+**Las horas se apuntan a mano, no con cronómetro.** Hubo un botón de empezar
+y parar; se quitó a propósito. Los registros que quedaran abiertos de
+entonces (`ended_at` a null) no cuentan para los totales y la pantalla los
+saca aparte para poder borrarlos.
+
 **El horario del taller** (lunes a viernes 07:00–15:00 y 16:00–18:00; sábados
-06:30–11:30) vive en `src/lib/horario.ts`, con sus tests. La app **avisa**
-cuando un rato imputado se sale del horario, pero no lo impide: a veces se
-echa una hora de más y hay que poder apuntarla. Si algún día cambia el
-convenio, se cambia solo la tabla `TRAMOS` de ese archivo.
+06:30–11:30) vive en `src/lib/horario.ts`, con sus tests. Si algún día cambia
+el convenio, se cambia solo la tabla `TRAMOS` de ese archivo y se reajustan
+solos los desplegables, los avisos y las horas previstas.
+
+De ahí salen los desplegables de "desde" y "hasta": `franjasDelDia()` parte el
+horario en huecos de 15 minutos agrupados por tramo (mañana y tarde), así que
+solo se pueden elegir horas de la jornada. El de "hasta" además descarta las
+anteriores a la de inicio.
+
+Aun así queda un hueco por el que colarse —elegir de 14:00 a 16:00 cruza el
+rato de la comida—, y para eso está `avisoDeHorario()`, que lo advierte. **Avisa
+pero no bloquea**: a veces se echa una hora de más y hay que poder apuntarla.
 
 ## `calendar_events`
 

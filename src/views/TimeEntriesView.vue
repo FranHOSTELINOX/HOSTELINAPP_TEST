@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { supabase } from '../lib/supabase'
 import { role, session } from '../stores/auth'
 import type { Database } from '../lib/database.types'
 import {
   daysFromToday,
   entryDuration,
-  formatClock,
   formatDate,
   formatDuration,
   formatTime,
 } from '../lib/format'
-import { avisoDeHorario, describeHorario, minutosPrevistos } from '../lib/horario'
+import {
+  avisoDeHorario,
+  describeHorario,
+  franjasDelDia,
+  minutosPrevistos,
+} from '../lib/horario'
 import AppIcon from '../components/AppIcon.vue'
 import AlertMessage from '../components/AlertMessage.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -27,45 +31,106 @@ const projects = ref<Project[]>([])
 const products = ref<Product[]>([])
 const loading = ref(true)
 const error = ref('')
-const trabajando = ref(false)
+const message = ref('')
+const guardando = ref(false)
 
-// Selección de proyecto y producto, compartida por el fichaje y el parte manual.
-const proyectoId = ref('')
-const productoId = ref('')
-const notes = ref('')
+/** Fecha de hoy en el formato que entiende <input type="date">. */
+function hoyISO(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
 
-// Parte de horas a mano.
-const manualAbierto = ref(false)
-const manual = ref({ fecha: '', desde: '', hasta: '', notes: '' })
-
-// Reloj que avanza solo mientras hay un registro abierto.
-const ahora = ref(Date.now())
-let tick: ReturnType<typeof setInterval> | undefined
+const parte = ref({
+  fecha: hoyISO(),
+  proyectoId: '',
+  productoId: '',
+  desde: '',
+  hasta: '',
+  notes: '',
+})
 
 /** Solo el administrador puede imputar horas sin decir a qué producto. */
 const requiereProducto = computed(() => role.value !== 'admin')
 
 const proyectosActivos = computed(() => projects.value.filter((p) => p.active))
 
-/** Los productos del proyecto elegido (los retirados no se ofrecen). */
 const productosDelProyecto = computed(() =>
-  products.value.filter((p) => p.project_id === proyectoId.value && p.active),
+  products.value.filter((p) => p.project_id === parte.value.proyectoId && p.active),
 )
 
 // Si cambia el proyecto, el producto elegido deja de tener sentido.
-watch(proyectoId, () => {
-  productoId.value = ''
-})
+watch(
+  () => parte.value.proyectoId,
+  () => {
+    parte.value.productoId = ''
+  },
+)
 
-const openEntry = computed(() => entries.value.find((entry) => !entry.ended_at) ?? null)
-const cerradas = computed(() => entries.value.filter((e) => e.ended_at))
+/** El día elegido, como Date, para preguntarle al horario. */
+const diaElegido = computed(() =>
+  parte.value.fecha ? new Date(`${parte.value.fecha}T12:00`) : new Date(),
+)
 
-const transcurrido = computed(() =>
-  openEntry.value ? ahora.value - new Date(openEntry.value.started_at).getTime() : 0,
+/** Los huecos de 15 min que se pueden elegir ese día, por tramo. */
+const franjas = computed(() => franjasDelDia(diaElegido.value))
+
+const seTrabaja = computed(() => franjas.value.length > 0)
+
+/**
+ * Para "hasta" solo tienen sentido las horas posteriores a la de inicio, así
+ * que las anteriores ni se ofrecen.
+ */
+const franjasHasta = computed(() =>
+  franjas.value
+    .map((f) => ({
+      etiqueta: f.etiqueta,
+      horas: f.horas.filter((h) => !parte.value.desde || h > parte.value.desde),
+    }))
+    .filter((f) => f.horas.length > 0),
+)
+
+// Al cambiar de día cambian los huecos disponibles, así que las horas
+// elegidas antes pueden dejar de existir.
+watch(
+  () => parte.value.fecha,
+  () => {
+    parte.value.desde = ''
+    parte.value.hasta = ''
+  },
+)
+
+// Si "hasta" se queda antes o igual que "desde", deja de valer.
+watch(
+  () => parte.value.desde,
+  () => {
+    if (parte.value.hasta && parte.value.hasta <= parte.value.desde) {
+      parte.value.hasta = ''
+    }
+  },
 )
 
 const horarioDeHoy = computed(() => describeHorario(new Date()))
 const previstoHoy = computed(() => minutosPrevistos(new Date()) * 60_000)
+
+const cerradas = computed(() => entries.value.filter((e) => e.ended_at))
+
+/** Registros que se quedaron abiertos con el cronómetro de antes. */
+const abiertas = computed(() => entries.value.filter((e) => !e.ended_at))
+
+/** Aviso en vivo mientras se rellena el parte. */
+const aviso = computed(() => {
+  const { fecha, desde, hasta } = parte.value
+  if (!fecha || !desde || !hasta) return null
+  return avisoDeHorario(new Date(`${fecha}T${desde}`), new Date(`${fecha}T${hasta}`))
+})
+
+/** Cuánto suma el rato elegido, para enseñarlo antes de guardar. */
+const duracionElegida = computed(() => {
+  const { fecha, desde, hasta } = parte.value
+  if (!fecha || !desde || !hasta) return 0
+  return new Date(`${fecha}T${hasta}`).getTime() - new Date(`${fecha}T${desde}`).getTime()
+})
 
 /** Nombre "Proyecto · Producto" de un registro, para las listas. */
 function etiquetaProducto(productId: string | null): string {
@@ -76,25 +141,19 @@ function etiquetaProducto(productId: string | null): string {
   return proyecto ? `${proyecto.name} · ${producto.name}` : producto.name
 }
 
-const totalHoy = computed(() => {
-  const cerrado = cerradas.value
+const totalHoy = computed(() =>
+  cerradas.value
     .filter((e) => daysFromToday(e.started_at) === 0)
-    .reduce((suma, e) => suma + entryDuration(e.started_at, e.ended_at as string), 0)
-  const abierto =
-    openEntry.value && daysFromToday(openEntry.value.started_at) === 0
-      ? transcurrido.value
-      : 0
-  return cerrado + abierto
-})
+    .reduce((suma, e) => suma + entryDuration(e.started_at, e.ended_at as string), 0),
+)
 
-const totalSemana = computed(() => {
-  const cerrado = cerradas.value
+const totalSemana = computed(() =>
+  cerradas.value
     .filter((e) => daysFromToday(e.started_at) > -7)
-    .reduce((suma, e) => suma + entryDuration(e.started_at, e.ended_at as string), 0)
-  return cerrado + (openEntry.value ? transcurrido.value : 0)
-})
+    .reduce((suma, e) => suma + entryDuration(e.started_at, e.ended_at as string), 0),
+)
 
-/** Los registros cerrados, agrupados por día para que la lista se lea mejor. */
+/** Los registros, agrupados por día para que la lista se lea mejor. */
 const porDia = computed(() => {
   const grupos = new Map<string, { etiqueta: string; total: number; items: TimeEntry[] }>()
   for (const entry of cerradas.value) {
@@ -108,13 +167,6 @@ const porDia = computed(() => {
     grupos.set(clave, grupo)
   }
   return [...grupos.values()]
-})
-
-/** Aviso en vivo mientras se rellena el parte manual. */
-const avisoManual = computed(() => {
-  const { fecha, desde, hasta } = manual.value
-  if (!fecha || !desde || !hasta) return null
-  return avisoDeHorario(new Date(`${fecha}T${desde}`), new Date(`${fecha}T${hasta}`))
 })
 
 async function cargarCatalogo() {
@@ -138,71 +190,17 @@ async function loadEntries() {
   else entries.value = data ?? []
 }
 
-/** Comprueba que hay producto elegido cuando hace falta. */
-function faltaProducto(): boolean {
-  if (!requiereProducto.value) return false
-  if (!productoId.value) {
+async function guardar() {
+  if (!session.value) return
+  error.value = ''
+  message.value = ''
+
+  if (requiereProducto.value && !parte.value.productoId) {
     error.value = 'Elige el proyecto y el producto al que imputas las horas.'
-    return true
-  }
-  return false
-}
-
-async function startEntry() {
-  if (!session.value) return
-  error.value = ''
-  if (faltaProducto()) return
-
-  trabajando.value = true
-  const { error: insertError } = await supabase.from('time_entries').insert({
-    user_id: session.value.user.id,
-    product_id: productoId.value || null,
-    notes: notes.value || null,
-  })
-  trabajando.value = false
-  if (insertError) {
-    error.value = insertError.message
     return
   }
-  notes.value = ''
-  await loadEntries()
-}
 
-async function stopEntry(entry: TimeEntry) {
-  trabajando.value = true
-  error.value = ''
-  const { error: updateError } = await supabase
-    .from('time_entries')
-    .update({ ended_at: new Date().toISOString() })
-    .eq('id', entry.id)
-
-  trabajando.value = false
-  if (updateError) {
-    error.value = updateError.message
-    return
-  }
-  await loadEntries()
-}
-
-function abrirManual() {
-  manualAbierto.value = true
-  error.value = ''
-  const hoy = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  manual.value = {
-    fecha: `${hoy.getFullYear()}-${p(hoy.getMonth() + 1)}-${p(hoy.getDate())}`,
-    desde: '',
-    hasta: '',
-    notes: '',
-  }
-}
-
-async function guardarManual() {
-  if (!session.value) return
-  error.value = ''
-  if (faltaProducto()) return
-
-  const { fecha, desde, hasta } = manual.value
+  const { fecha, desde, hasta } = parte.value
   const inicio = new Date(`${fecha}T${desde}`)
   const fin = new Date(`${fecha}T${hasta}`)
   if (fin <= inicio) {
@@ -210,33 +208,44 @@ async function guardarManual() {
     return
   }
 
-  trabajando.value = true
+  guardando.value = true
   const { error: insertError } = await supabase.from('time_entries').insert({
     user_id: session.value.user.id,
-    product_id: productoId.value || null,
+    product_id: parte.value.productoId || null,
     started_at: inicio.toISOString(),
     ended_at: fin.toISOString(),
-    notes: manual.value.notes || null,
+    notes: parte.value.notes || null,
   })
-  trabajando.value = false
+  guardando.value = false
+
   if (insertError) {
     error.value = insertError.message
     return
   }
-  manualAbierto.value = false
+
+  message.value = `Apuntadas ${formatDuration(fin.getTime() - inicio.getTime())}.`
+  // Se conservan día, proyecto y producto: lo normal es apuntar varios ratos
+  // seguidos del mismo trabajo.
+  parte.value.desde = ''
+  parte.value.hasta = ''
+  parte.value.notes = ''
+  await loadEntries()
+}
+
+async function borrarRegistro(id: string) {
+  error.value = ''
+  const { error: e } = await supabase.from('time_entries').delete().eq('id', id)
+  if (e) {
+    error.value = e.message
+    return
+  }
+  message.value = 'Registro borrado.'
   await loadEntries()
 }
 
 onMounted(async () => {
   await Promise.all([cargarCatalogo(), loadEntries()])
   loading.value = false
-  tick = setInterval(() => {
-    ahora.value = Date.now()
-  }, 1000)
-})
-
-onUnmounted(() => {
-  if (tick) clearInterval(tick)
 })
 </script>
 
@@ -244,7 +253,7 @@ onUnmounted(() => {
   <PageHeader
     eyebrow="Mi jornada"
     title="Registro de tiempos"
-    subtitle="Elige a qué estás trabajando y dale a empezar. Al terminar, para el reloj."
+    subtitle="Apunta las horas que has echado en cada producto."
   >
     <template #acciones>
       <span class="pill pill-plain horario">
@@ -255,11 +264,11 @@ onUnmounted(() => {
   </PageHeader>
 
   <AlertMessage v-if="error" kind="error" class="mb">{{ error }}</AlertMessage>
+  <AlertMessage v-if="message" kind="success" class="mb">{{ message }}</AlertMessage>
 
   <LoadingList v-if="loading" :rows="3" />
 
   <template v-else>
-    <!-- Sin catálogo no se puede imputar nada -->
     <EmptyState
       v-if="proyectosActivos.length === 0 && requiereProducto"
       icon="puesto"
@@ -268,154 +277,159 @@ onUnmounted(() => {
     />
 
     <template v-else>
-      <!-- ---------- El fichaje ---------- -->
-      <section class="panel fichaje" :class="{ enMarcha: openEntry }">
-        <template v-if="openEntry">
-          <div class="fichaje-info">
-            <span class="pill pill-accent pill-live">En marcha</span>
-            <p class="reloj mono">{{ formatClock(transcurrido) }}</p>
-            <p class="trabajo">{{ etiquetaProducto(openEntry.product_id) }}</p>
-            <p class="small muted">
-              Desde las {{ formatTime(openEntry.started_at) }}
-              <template v-if="openEntry.notes"> · {{ openEntry.notes }}</template>
-            </p>
-          </div>
-          <button
-            type="button"
-            class="btn btn-lg btn-parar"
-            :disabled="trabajando"
-            @click="stopEntry(openEntry)"
-          >
-            <AppIcon name="stop" :size="17" />
-            {{ trabajando ? 'Parando…' : 'Parar' }}
-          </button>
-        </template>
-
-        <template v-else>
-          <div class="fichaje-info">
-            <span class="eyebrow">Sin registro abierto</span>
-            <p class="fichaje-titulo">¿En qué te pones?</p>
-          </div>
-
-          <form class="fichaje-form" @submit.prevent="startEntry">
-            <div class="eleccion">
-              <div class="field">
-                <label class="field-label" for="proyecto">Proyecto</label>
-                <select id="proyecto" v-model="proyectoId" class="select">
-                  <option value="">Elige un proyecto…</option>
-                  <option v-for="p in proyectosActivos" :key="p.id" :value="p.id">
-                    {{ p.name }}<template v-if="p.client"> — {{ p.client }}</template>
-                  </option>
-                </select>
-              </div>
-
-              <div class="field">
-                <label class="field-label" for="producto">Producto</label>
-                <select
-                  id="producto"
-                  v-model="productoId"
-                  class="select"
-                  :disabled="!proyectoId"
-                >
-                  <option value="">
-                    {{ proyectoId ? 'Elige un producto…' : 'Elige antes el proyecto' }}
-                  </option>
-                  <option v-for="p in productosDelProyecto" :key="p.id" :value="p.id">
-                    {{ p.name }}
-                  </option>
-                </select>
-                <p
-                  v-if="proyectoId && productosDelProyecto.length === 0"
-                  class="field-hint aviso"
-                >
-                  Este proyecto todavía no tiene productos.
-                </p>
-              </div>
-
-              <div class="field">
-                <label class="field-label" for="nota">Nota (opcional)</label>
-                <input
-                  id="nota"
-                  v-model="notes"
-                  class="input"
-                  placeholder="Ej. soldadura del bastidor"
-                />
-              </div>
-            </div>
-
-            <div class="fichaje-acciones">
-              <button type="submit" class="btn btn-primary btn-lg" :disabled="trabajando">
-                <AppIcon name="play" :size="16" />
-                {{ trabajando ? 'Empezando…' : 'Empezar' }}
-              </button>
-              <button type="button" class="btn btn-ghost" @click="abrirManual">
-                Añadir horas a mano
-              </button>
-            </div>
-          </form>
-        </template>
-      </section>
-
-      <!-- ---------- Parte de horas a mano ---------- -->
-      <section v-if="manualAbierto" class="panel manual">
+      <!-- ---------- El parte de horas ---------- -->
+      <section class="panel parte">
         <header class="panel-head">
           <AppIcon name="nota" :size="17" />
-          <h3>Añadir horas a mano</h3>
-          <span class="spacer"></span>
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            aria-label="Cerrar"
-            @click="manualAbierto = false"
-          >
-            <AppIcon name="cerrar" :size="15" />
-          </button>
+          <h3>Imputar horas</h3>
         </header>
+
         <div class="panel-body">
-          <p class="small muted intro">
-            Para apuntar un rato que ya has trabajado. Se imputa al proyecto y
-            producto elegidos arriba.
-          </p>
-          <form class="form-grid form-grid-2" @submit.prevent="guardarManual">
-            <div class="field span-2">
-              <label class="field-label" for="m-fecha">Día</label>
-              <input id="m-fecha" v-model="manual.fecha" class="input" type="date" required />
+          <form class="form-grid campos" @submit.prevent="guardar">
+            <div class="field">
+              <label class="field-label" for="fecha">Día</label>
+              <input id="fecha" v-model="parte.fecha" class="input" type="date" required />
             </div>
 
             <div class="field">
-              <label class="field-label" for="m-desde">Desde</label>
-              <input id="m-desde" v-model="manual.desde" class="input" type="time" required />
+              <label class="field-label" for="proyecto">Proyecto</label>
+              <select id="proyecto" v-model="parte.proyectoId" class="select">
+                <option value="">Elige un proyecto…</option>
+                <option v-for="p in proyectosActivos" :key="p.id" :value="p.id">
+                  {{ p.name }}<template v-if="p.client"> — {{ p.client }}</template>
+                </option>
+              </select>
             </div>
 
             <div class="field">
-              <label class="field-label" for="m-hasta">Hasta</label>
-              <input id="m-hasta" v-model="manual.hasta" class="input" type="time" required />
+              <label class="field-label" for="producto">Producto</label>
+              <select
+                id="producto"
+                v-model="parte.productoId"
+                class="select"
+                :disabled="!parte.proyectoId"
+              >
+                <option value="">
+                  {{ parte.proyectoId ? 'Elige un producto…' : 'Elige antes el proyecto' }}
+                </option>
+                <option v-for="p in productosDelProyecto" :key="p.id" :value="p.id">
+                  {{ p.name }}
+                </option>
+              </select>
+              <p
+                v-if="parte.proyectoId && productosDelProyecto.length === 0"
+                class="field-hint aviso"
+              >
+                Este proyecto todavía no tiene productos.
+              </p>
             </div>
 
-            <div class="field span-2">
-              <label class="field-label" for="m-nota">Nota (opcional)</label>
-              <input id="m-nota" v-model="manual.notes" class="input" />
+            <div class="field">
+              <label class="field-label" for="desde">Desde</label>
+              <select
+                id="desde"
+                v-model="parte.desde"
+                class="select"
+                :disabled="!seTrabaja"
+                required
+              >
+                <option value="">{{ seTrabaja ? 'Hora…' : 'No se trabaja' }}</option>
+                <optgroup v-for="f in franjas" :key="f.etiqueta" :label="f.etiqueta">
+                  <option v-for="h in f.horas" :key="h" :value="h">{{ h }}</option>
+                </optgroup>
+              </select>
             </div>
 
-            <p v-if="avisoManual" class="alert span-2 aviso-horario">
+            <div class="field">
+              <label class="field-label" for="hasta">Hasta</label>
+              <select
+                id="hasta"
+                v-model="parte.hasta"
+                class="select"
+                :disabled="!seTrabaja || !parte.desde"
+                required
+              >
+                <option value="">
+                  {{ !seTrabaja ? 'No se trabaja' : parte.desde ? 'Hora…' : 'Elige antes la de inicio' }}
+                </option>
+                <optgroup v-for="f in franjasHasta" :key="f.etiqueta" :label="f.etiqueta">
+                  <option v-for="h in f.horas" :key="h" :value="h">{{ h }}</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="field-label" for="nota">Nota (opcional)</label>
+              <input
+                id="nota"
+                v-model="parte.notes"
+                class="input"
+                placeholder="Ej. soldadura del bastidor"
+              />
+            </div>
+
+            <p v-if="!seTrabaja" class="alert span-todo aviso-horario">
               <AppIcon name="aviso" :size="16" />
-              <span>{{ avisoManual }}</span>
+              <span>Ese día no se trabaja según el horario del taller.</span>
             </p>
 
-            <div class="form-actions span-2">
-              <button type="submit" class="btn btn-primary" :disabled="trabajando">
-                {{ trabajando ? 'Guardando…' : 'Guardar horas' }}
+            <p v-else-if="aviso" class="alert span-todo aviso-horario">
+              <AppIcon name="aviso" :size="16" />
+              <span>{{ aviso }}</span>
+            </p>
+
+            <div class="form-actions span-todo">
+              <button
+                type="submit"
+                class="btn btn-primary btn-lg"
+                :disabled="guardando || !seTrabaja"
+              >
+                <AppIcon name="mas" :size="16" />
+                {{ guardando ? 'Guardando…' : 'Apuntar horas' }}
               </button>
-              <button type="button" class="btn btn-ghost" @click="manualAbierto = false">
-                Cancelar
-              </button>
+              <span v-if="duracionElegida > 0" class="duracion">
+                Son <strong>{{ formatDuration(duracionElegida) }}</strong>
+              </span>
             </div>
           </form>
         </div>
       </section>
 
+      <!-- ---------- Restos del cronómetro de antes ---------- -->
+      <section v-if="abiertas.length > 0" class="panel sin-cerrar">
+        <header class="panel-head">
+          <AppIcon name="aviso" :size="17" />
+          <h3>Registros sin cerrar</h3>
+        </header>
+        <div class="panel-body">
+          <p class="small muted intro">
+            Se quedaron abiertos con el botón de empezar y parar, que ya no
+            existe. No cuentan para los totales. Bórralos y vuelve a apuntar
+            esas horas con el parte de arriba.
+          </p>
+          <div class="stack-sm">
+            <article v-for="entry in abiertas" :key="entry.id" class="panel registro">
+              <span class="registro-horas mono">
+                {{ formatDate(entry.started_at) }} · {{ formatTime(entry.started_at) }}
+              </span>
+              <span class="registro-trabajo">
+                {{ etiquetaProducto(entry.product_id) }}
+              </span>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm borrar"
+                :aria-label="`Borrar el registro sin cerrar del ${formatDate(entry.started_at)}`"
+                @click="borrarRegistro(entry.id)"
+              >
+                <AppIcon name="borrar" :size="15" />
+              </button>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <!-- ---------- Totales ---------- -->
-      <section v-if="entries.length > 0" class="totales">
+      <section v-if="cerradas.length > 0" class="totales">
         <div class="panel total">
           <span class="cifra-eti">Hoy</span>
           <span class="total-num mono">{{ formatDuration(totalHoy) }}</span>
@@ -429,7 +443,7 @@ onUnmounted(() => {
         </div>
         <div class="panel total">
           <span class="cifra-eti">Registros</span>
-          <span class="total-num mono">{{ entries.length }}</span>
+          <span class="total-num mono">{{ cerradas.length }}</span>
         </div>
       </section>
 
@@ -437,8 +451,8 @@ onUnmounted(() => {
       <EmptyState
         v-if="cerradas.length === 0"
         icon="reloj"
-        title="Todavía no has cerrado ningún registro"
-        text="En cuanto pares un registro, lo verás aquí con las horas que has echado."
+        title="Todavía no has apuntado ninguna hora"
+        text="Rellena el parte de arriba y las verás aquí, agrupadas por día."
       />
 
       <div v-else class="stack-lg historial">
@@ -461,6 +475,14 @@ onUnmounted(() => {
               <span class="pill pill-plain registro-dur mono">
                 {{ formatDuration(entryDuration(entry.started_at, entry.ended_at as string)) }}
               </span>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm borrar"
+                :aria-label="`Borrar el registro de las ${formatTime(entry.started_at)}`"
+                @click="borrarRegistro(entry.id)"
+              >
+                <AppIcon name="borrar" :size="15" />
+              </button>
             </article>
           </div>
         </section>
@@ -478,128 +500,61 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-/* ---------------- Fichaje ---------------- */
-.fichaje {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
-  padding: 1.5rem;
+/* ---------------- El parte ---------------- */
+.parte {
   margin-bottom: 1.125rem;
 }
 
-/* Cuando hay un registro abierto, la pieza se pone "caliente" */
-.fichaje.enMarcha {
-  border-color: var(--accent-soft-border);
-  background-image: linear-gradient(180deg, var(--sheen) 0, transparent 64px),
-    radial-gradient(120% 130% at 0% 0%, var(--accent-soft) 0%, transparent 62%);
+.campos {
+  grid-template-columns: 1fr;
 }
 
-.fichaje-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.4375rem;
-  min-width: 0;
-}
-
-.reloj {
-  font-family: var(--font-mono);
-  font-size: clamp(2.25rem, 1.6rem + 2.6vw, 3rem);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-.trabajo {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--accent-text);
-}
-
-.fichaje-titulo {
-  font-family: var(--font-display);
-  font-size: 1.375rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-/* Sin reloj en marcha no hay cifra grande que enseñar, así que el rótulo va
-   arriba y el formulario ocupa el ancho entero en vez de dejar medio panel
-   vacío. Con el reloj corriendo sí interesa el reparto en dos columnas. */
-.fichaje:not(.enMarcha) {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 1rem;
-}
-
-.fichaje-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  flex: 1;
-  min-width: min(100%, 320px);
-}
-
-.eleccion {
-  display: grid;
-  gap: 0.875rem;
-}
-
-@media (min-width: 560px) {
-  .eleccion {
+@media (min-width: 620px) {
+  .campos {
     grid-template-columns: 1fr 1fr;
   }
 }
 
-@media (min-width: 860px) {
-  .eleccion {
-    grid-template-columns: 1fr 1fr 1fr;
+@media (min-width: 960px) {
+  .campos {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-.fichaje-acciones {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
+/* Lo que ocupa toda la fila, sea cual sea el número de columnas */
+.span-todo {
+  grid-column: 1 / -1;
 }
 
 .aviso {
   color: var(--warn-fg);
 }
 
-.btn-parar {
-  color: #fff;
-  background: linear-gradient(180deg, var(--steel-700), var(--steel-900));
-  border-color: var(--steel-900);
-  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.16);
-}
-
-.btn-parar:hover:not(:disabled) {
-  background: linear-gradient(180deg, var(--steel-600), var(--steel-800));
-  border-color: var(--steel-950);
-}
-
-/* ---------------- Parte manual ---------------- */
-.manual {
-  margin-bottom: 1.125rem;
-}
-
-.intro {
-  margin-bottom: 1.125rem;
-  line-height: 1.55;
-}
-
 .aviso-horario {
   color: var(--warn-fg);
   background: var(--warn-bg);
   border-color: var(--warn-line);
+}
+
+.duracion {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.duracion strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- Registros sin cerrar ---------------- */
+.sin-cerrar {
+  margin-bottom: 1.125rem;
+  border-color: var(--warn-line);
+}
+
+.intro {
+  margin-bottom: 1rem;
+  line-height: 1.55;
 }
 
 /* ---------------- Totales ---------------- */
@@ -692,5 +647,18 @@ onUnmounted(() => {
   color: var(--text-muted);
   margin-left: auto;
   flex: none;
+}
+
+.borrar {
+  flex: none;
+  padding: 0;
+  width: 32px;
+  min-height: 32px;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.borrar:hover {
+  color: var(--danger-fg);
 }
 </style>
