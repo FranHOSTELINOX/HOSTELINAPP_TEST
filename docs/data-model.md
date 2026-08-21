@@ -34,7 +34,38 @@ navegador. Comprueba primero que quien llama ya es admin, crea la cuenta,
 confirma su email y rellena `full_name`/`puesto`. Ver `docs/deploy.md` para
 cómo se despliega esa función.
 
-## `tasks`
+## `projects` y `products`
+
+El catálogo al que el equipo imputa sus horas. Un proyecto (por ejemplo
+"Hotel Giralda") agrupa varios productos ("Campana mural 3000×1100"). Se
+añadieron en la migración `0004_projects_products.sql`.
+
+| `projects` | qué es                                          |
+|------------|--------------------------------------------------|
+| name       | nombre del proyecto                              |
+| client     | cliente, opcional                                |
+| active     | si sigue apareciendo al imputar horas            |
+
+| `products` | qué es                                          |
+|------------|--------------------------------------------------|
+| project_id | proyecto al que pertenece (obligatorio)          |
+| name       | nombre del producto                              |
+| active     | si sigue apareciendo al imputar horas            |
+
+**Quién ve/edita qué**: cualquiera con sesión ve el catálogo entero (hace
+falta para poder imputar horas). Solo el admin crea, edita y borra.
+
+**Retirar en vez de borrar**: `time_entries.product_id` tiene
+`on delete restrict`, así que un producto con horas imputadas **no se puede
+borrar** — Postgres lo rechaza y la interfaz lo explica. Para sacarlo del
+catálogo sin perder el histórico se pone `active = false`.
+
+## `tasks` (sin uso en la interfaz)
+
+Las tareas se quitaron del menú de la app. La tabla **sigue existiendo** con
+sus datos y sus políticas, pero ninguna pantalla la lee ni la escribe. Si
+algún día se decide que no vuelve, habrá que borrarla con una migración
+nueva (y, antes, `time_entries.task_id`).
 
 Tareas que crea el admin y asigna a un usuario.
 
@@ -55,17 +86,29 @@ función).
 
 ## `time_entries`
 
-Registro de tiempo trabajado, opcionalmente ligado a una tarea.
+Las horas que imputa cada trabajador.
 
 | columna    | qué es                                     |
 |------------|----------------------------------------------|
-| task_id    | tarea relacionada (opcional)                 |
+| product_id | producto al que se imputan las horas         |
+| task_id    | resto de cuando había tareas; ya no se usa   |
 | user_id    | quién registró el tiempo                     |
 | started_at | inicio                                       |
 | ended_at   | fin (null = todavía en marcha)               |
 
 **Quién ve/edita qué**: cada usuario ve y gestiona solo sus propias entradas;
 el admin ve y gestiona todas.
+
+**El producto es obligatorio para el equipo, no para el admin**: la interfaz
+no deja fichar a un usuario normal sin elegir proyecto y producto. A nivel de
+base de datos la columna es opcional, para no romper los registros que ya
+existían antes de esta pantalla.
+
+**El horario del taller** (lunes a viernes 07:00–15:00 y 16:00–18:00; sábados
+06:30–11:30) vive en `src/lib/horario.ts`, con sus tests. La app **avisa**
+cuando un rato imputado se sale del horario, pero no lo impide: a veces se
+echa una hora de más y hay que poder apuntarla. Si algún día cambia el
+convenio, se cambia solo la tabla `TRAMOS` de ese archivo.
 
 ## `calendar_events`
 

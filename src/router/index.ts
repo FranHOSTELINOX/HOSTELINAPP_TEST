@@ -2,18 +2,12 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import { authReady, role, session } from '../stores/auth'
 
 const router = createRouter({
-  // Modo hash (URLs tipo /#/tareas) porque GitHub Pages no sabe redirigir
+  // Modo hash (URLs tipo /#/tiempos) porque GitHub Pages no sabe redirigir
   // rutas "bonitas" de una SPA de vuelta a index.html.
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', redirect: '/tareas' },
+    { path: '/', redirect: '/tiempos' },
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
-    {
-      path: '/tareas',
-      name: 'tareas',
-      component: () => import('../views/TasksView.vue'),
-      meta: { requiresAuth: true },
-    },
     {
       path: '/tiempos',
       name: 'tiempos',
@@ -44,6 +38,10 @@ const router = createRouter({
       component: () => import('../views/ChangePasswordView.vue'),
       meta: { requiresAuth: true },
     },
+    // Cualquier otra dirección (un enlace viejo, una guardada en favoritos
+    // como /#/tareas) va a parar a Tiempos, en vez de dejar la página en
+    // blanco porque ninguna ruta encaja.
+    { path: '/:ruta(.*)*', redirect: '/tiempos' },
   ],
 })
 
@@ -63,10 +61,10 @@ router.beforeEach(async (to) => {
     return { name: 'login' }
   }
   if (to.meta.requiresAdmin && role.value !== 'admin') {
-    return { name: 'tareas' }
+    return { name: 'tiempos' }
   }
   if (to.name === 'login' && session.value) {
-    return { name: 'tareas' }
+    return { name: 'tiempos' }
   }
   return true
 })

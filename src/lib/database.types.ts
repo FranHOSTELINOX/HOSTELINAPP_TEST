@@ -61,10 +61,57 @@ export interface Database {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          id: string
+          name: string
+          client: string | null
+          active: boolean
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          client?: string | null
+          active?: boolean
+          created_by: string
+        }
+        Update: {
+          name?: string
+          client?: string | null
+          active?: boolean
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          id: string
+          project_id: string
+          name: string
+          active: boolean
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          name: string
+          active?: boolean
+          created_by: string
+        }
+        Update: {
+          project_id?: string
+          name?: string
+          active?: boolean
+        }
+        Relationships: []
+      }
       time_entries: {
         Row: {
           id: string
           task_id: string | null
+          product_id: string | null
           user_id: string
           started_at: string
           ended_at: string | null
@@ -74,6 +121,7 @@ export interface Database {
         Insert: {
           id?: string
           task_id?: string | null
+          product_id?: string | null
           user_id: string
           started_at?: string
           ended_at?: string | null
@@ -81,6 +129,7 @@ export interface Database {
         }
         Update: {
           task_id?: string | null
+          product_id?: string | null
           started_at?: string
           ended_at?: string | null
           notes?: string | null

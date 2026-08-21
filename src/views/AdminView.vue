@@ -10,12 +10,14 @@ import PageHeader from '../components/PageHeader.vue'
 import type { IconName } from '../components/icons'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
-type Task = Database['public']['Tables']['tasks']['Row']
+type Project = Database['public']['Tables']['projects']['Row']
+type Product = Database['public']['Tables']['products']['Row']
 type CalendarEvent = Database['public']['Tables']['calendar_events']['Row']
 type Notice = Database['public']['Tables']['notices']['Row']
 
 const users = ref<Profile[]>([])
-const tasks = ref<Task[]>([])
+const projects = ref<Project[]>([])
+const products = ref<Product[]>([])
 const events = ref<CalendarEvent[]>([])
 const notices = ref<Notice[]>([])
 
@@ -23,22 +25,28 @@ const error = ref('')
 const message = ref('')
 const guardando = ref(false)
 
-// Id del elemento que se está editando (null = se está creando uno nuevo)
-// y del que espera confirmación para borrarse.
+// Id del elemento que se está editando (null = se está creando uno nuevo) y
+// del que espera confirmación para borrarse. `editandoProd` va aparte porque
+// en la pestaña de proyectos hay dos formularios a la vez.
 const editando = ref<string | null>(null)
+const editandoProd = ref<string | null>(null)
 const borrando = ref<string | null>(null)
 
-const newTask = ref({ title: '', description: '', assigned_to: '', due_date: '' })
+/** Proyecto cuyos productos se están gestionando. */
+const proyectoSel = ref<string | null>(null)
+
+const newProject = ref({ name: '', client: '', active: true })
+const newProduct = ref({ name: '', active: true })
 const newEvent = ref({ title: '', description: '', start_at: '', assigned_to: '' })
 const newNotice = ref({ title: '', body: '', assigned_to: '' })
 const newUser = ref({ full_name: '', email: '', password: '', puesto: '', isAdmin: false })
 const editUser = ref({ full_name: '', puesto: '', isAdmin: false })
 
-type Seccion = 'equipo' | 'tareas' | 'calendario' | 'avisos'
+type Seccion = 'equipo' | 'proyectos' | 'calendario' | 'avisos'
 
 const secciones: { id: Seccion; etiqueta: string; icono: IconName }[] = [
   { id: 'equipo', etiqueta: 'Equipo', icono: 'usuarios' },
-  { id: 'tareas', etiqueta: 'Tareas', icono: 'tareas' },
+  { id: 'proyectos', etiqueta: 'Proyectos', icono: 'puesto' },
   { id: 'calendario', etiqueta: 'Calendario', icono: 'calendario' },
   { id: 'avisos', etiqueta: 'Avisos', icono: 'avisos' },
 ]
@@ -53,10 +61,12 @@ function cambiarSeccion(id: Seccion) {
 /** Deja los formularios y los avisos como recién entrados en la pantalla. */
 function limpiar() {
   editando.value = null
+  editandoProd.value = null
   borrando.value = null
   error.value = ''
   message.value = ''
-  newTask.value = { title: '', description: '', assigned_to: '', due_date: '' }
+  newProject.value = { name: '', client: '', active: true }
+  newProduct.value = { name: '', active: true }
   newEvent.value = { title: '', description: '', start_at: '', assigned_to: '' }
   newNotice.value = { title: '', body: '', assigned_to: '' }
   newUser.value = { full_name: '', email: '', password: '', puesto: '', isAdmin: false }
@@ -65,7 +75,19 @@ function limpiar() {
 
 const admins = computed(() => users.value.filter((u) => u.role === 'admin').length)
 
-/** Nombre de la persona a la que está asignada una cosa (o "Todo el equipo"). */
+const proyectoActual = computed(
+  () => projects.value.find((p) => p.id === proyectoSel.value) ?? null,
+)
+
+const productosDelProyecto = computed(() =>
+  products.value.filter((p) => p.project_id === proyectoSel.value),
+)
+
+/** Cuántos productos tiene cada proyecto, para enseñarlo en la lista. */
+function cuentaProductos(projectId: string) {
+  return products.value.filter((p) => p.project_id === projectId).length
+}
+
 function nombreDe(id: string | null, siNulo = 'Todo el equipo') {
   if (!id) return siNulo
   const u = users.value.find((x) => x.id === id)
@@ -73,7 +95,7 @@ function nombreDe(id: string | null, siNulo = 'Todo el equipo') {
 }
 
 /**
- * <input type="datetime-local"> trabaja con "2026-08-21T08:00" en hora local.
+ * <input type="datetime-local"> trabaja con "2026-09-10T08:00" en hora local.
  * La base de datos guarda timestamptz, así que hay que convertir en los dos
  * sentidos; si se manda la cadena tal cual, Postgres la interpreta en UTC y
  * la hora se va un par de horas.
@@ -88,6 +110,14 @@ function aISO(local: string): string {
   return new Date(local).toISOString()
 }
 
+/** Traduce el error de clave ajena a algo que se entienda. */
+function explicaError(e: { message: string; code?: string }): string {
+  if (e.code === '23503' || /foreign key|violates/i.test(e.message)) {
+    return 'No se puede borrar porque ya tiene horas imputadas. Desactívalo en vez de borrarlo, así se queda fuera de la lista pero no se pierde el histórico.'
+  }
+  return e.message
+}
+
 // ---------------------------------------------------------------- cargas
 async function loadUsers() {
   const { data, error: e } = await supabase
@@ -98,13 +128,16 @@ async function loadUsers() {
   else users.value = data ?? []
 }
 
-async function loadTasks() {
-  const { data, error: e } = await supabase
-    .from('tasks')
-    .select('*')
-    .order('due_date', { ascending: true, nullsFirst: false })
+async function loadProjects() {
+  const { data, error: e } = await supabase.from('projects').select('*').order('name')
   if (e) error.value = e.message
-  else tasks.value = data ?? []
+  else projects.value = data ?? []
+}
+
+async function loadProducts() {
+  const { data, error: e } = await supabase.from('products').select('*').order('name')
+  if (e) error.value = e.message
+  else products.value = data ?? []
 }
 
 async function loadEvents() {
@@ -125,36 +158,32 @@ async function loadNotices() {
   else notices.value = data ?? []
 }
 
-// ---------------------------------------------------------------- tareas
-function editarTarea(t: Task) {
-  editando.value = t.id
+// -------------------------------------------------------------- proyectos
+function editarProyecto(p: Project) {
+  editando.value = p.id
   borrando.value = null
   error.value = ''
   message.value = ''
-  newTask.value = {
-    title: t.title,
-    description: t.description ?? '',
-    assigned_to: t.assigned_to ?? '',
-    due_date: t.due_date ?? '',
-  }
+  newProject.value = { name: p.name, client: p.client ?? '', active: p.active }
 }
 
-async function guardarTarea() {
+async function guardarProyecto() {
   if (!session.value) return
   error.value = ''
   message.value = ''
   guardando.value = true
 
   const campos = {
-    title: newTask.value.title,
-    description: newTask.value.description || null,
-    assigned_to: newTask.value.assigned_to || null,
-    due_date: newTask.value.due_date || null,
+    name: newProject.value.name,
+    client: newProject.value.client || null,
+    active: newProject.value.active,
   }
 
   const { error: e } = editando.value
-    ? await supabase.from('tasks').update(campos).eq('id', editando.value)
-    : await supabase.from('tasks').insert({ ...campos, created_by: session.value.user.id })
+    ? await supabase.from('projects').update(campos).eq('id', editando.value)
+    : await supabase
+        .from('projects')
+        .insert({ ...campos, created_by: session.value.user.id })
 
   guardando.value = false
   if (e) {
@@ -163,21 +192,81 @@ async function guardarTarea() {
   }
   const eraEdicion = editando.value
   limpiar()
-  message.value = eraEdicion ? 'Tarea actualizada.' : 'Tarea creada.'
-  await loadTasks()
+  message.value = eraEdicion ? 'Proyecto actualizado.' : 'Proyecto creado.'
+  await loadProjects()
 }
 
-async function borrarTarea(id: string) {
+async function borrarProyecto(id: string) {
   error.value = ''
-  const { error: e } = await supabase.from('tasks').delete().eq('id', id)
+  const { error: e } = await supabase.from('projects').delete().eq('id', id)
   borrando.value = null
+  if (e) {
+    error.value = explicaError(e)
+    return
+  }
+  if (editando.value === id) limpiar()
+  if (proyectoSel.value === id) proyectoSel.value = null
+  message.value = 'Proyecto borrado.'
+  await Promise.all([loadProjects(), loadProducts()])
+}
+
+function elegirProyecto(id: string) {
+  proyectoSel.value = proyectoSel.value === id ? null : id
+  editandoProd.value = null
+  newProduct.value = { name: '', active: true }
+}
+
+// -------------------------------------------------------------- productos
+function editarProducto(p: Product) {
+  editandoProd.value = p.id
+  borrando.value = null
+  error.value = ''
+  message.value = ''
+  newProduct.value = { name: p.name, active: p.active }
+}
+
+async function guardarProducto() {
+  if (!session.value || !proyectoSel.value) return
+  error.value = ''
+  message.value = ''
+  guardando.value = true
+
+  const campos = { name: newProduct.value.name, active: newProduct.value.active }
+
+  const { error: e } = editandoProd.value
+    ? await supabase.from('products').update(campos).eq('id', editandoProd.value)
+    : await supabase.from('products').insert({
+        ...campos,
+        project_id: proyectoSel.value,
+        created_by: session.value.user.id,
+      })
+
+  guardando.value = false
   if (e) {
     error.value = e.message
     return
   }
-  if (editando.value === id) limpiar()
-  message.value = 'Tarea borrada.'
-  await loadTasks()
+  const eraEdicion = editandoProd.value
+  editandoProd.value = null
+  newProduct.value = { name: '', active: true }
+  message.value = eraEdicion ? 'Producto actualizado.' : 'Producto creado.'
+  await loadProducts()
+}
+
+async function borrarProducto(id: string) {
+  error.value = ''
+  const { error: e } = await supabase.from('products').delete().eq('id', id)
+  borrando.value = null
+  if (e) {
+    error.value = explicaError(e)
+    return
+  }
+  if (editandoProd.value === id) {
+    editandoProd.value = null
+    newProduct.value = { name: '', active: true }
+  }
+  message.value = 'Producto borrado.'
+  await loadProducts()
 }
 
 // ------------------------------------------------------------- calendario
@@ -243,11 +332,7 @@ function editarAviso(n: Notice) {
   borrando.value = null
   error.value = ''
   message.value = ''
-  newNotice.value = {
-    title: n.title,
-    body: n.body ?? '',
-    assigned_to: n.assigned_to ?? '',
-  }
+  newNotice.value = { title: n.title, body: n.body ?? '', assigned_to: n.assigned_to ?? '' }
 }
 
 async function guardarAviso() {
@@ -371,7 +456,13 @@ async function createUser() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadUsers(), loadTasks(), loadEvents(), loadNotices()])
+  await Promise.all([
+    loadUsers(),
+    loadProjects(),
+    loadProducts(),
+    loadEvents(),
+    loadNotices(),
+  ])
 })
 </script>
 
@@ -379,7 +470,7 @@ onMounted(async () => {
   <PageHeader
     eyebrow="Panel del administrador"
     title="Administración"
-    subtitle="Da de alta al equipo y reparte tareas, eventos y avisos."
+    subtitle="Da de alta al equipo, monta el catálogo de proyectos y reparte eventos y avisos."
   />
 
   <!-- ---------- Pestañas ---------- -->
@@ -403,7 +494,6 @@ onMounted(async () => {
 
   <!-- ================= EQUIPO ================= -->
   <div v-if="seccion === 'equipo'" class="columnas">
-    <!-- Editar un usuario existente -->
     <section v-if="editando" class="panel">
       <header class="panel-head">
         <AppIcon name="usuario" :size="17" />
@@ -435,7 +525,7 @@ onMounted(async () => {
             <span class="switch-text">
               <strong>Es administrador</strong><br />
               <span class="small muted">
-                Podrá crear y editar usuarios, tareas, eventos y avisos.
+                Podrá crear y editar usuarios, proyectos, eventos y avisos.
               </span>
             </span>
           </label>
@@ -450,7 +540,6 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- Crear uno nuevo -->
     <section v-else class="panel">
       <header class="panel-head">
         <AppIcon name="usuario" :size="17" />
@@ -510,7 +599,7 @@ onMounted(async () => {
             <span class="switch-text">
               <strong>Es administrador</strong><br />
               <span class="small muted">
-                Podrá crear y editar usuarios, tareas, eventos y avisos como tú.
+                Podrá crear y editar usuarios, proyectos, eventos y avisos como tú.
               </span>
             </span>
           </label>
@@ -567,127 +656,224 @@ onMounted(async () => {
     </section>
   </div>
 
-  <!-- ================= TAREAS ================= -->
-  <div v-else-if="seccion === 'tareas'" class="columnas">
+  <!-- ================= PROYECTOS Y PRODUCTOS ================= -->
+  <div v-else-if="seccion === 'proyectos'" class="columnas">
+    <!-- Proyectos -->
+    <div class="stack">
+      <section class="panel">
+        <header class="panel-head">
+          <AppIcon name="puesto" :size="17" />
+          <h3>{{ editando ? 'Editar proyecto' : 'Nuevo proyecto' }}</h3>
+        </header>
+        <div class="panel-body">
+          <form class="form-grid" @submit.prevent="guardarProyecto">
+            <div class="field">
+              <label class="field-label" for="p-nombre">Nombre del proyecto</label>
+              <input
+                id="p-nombre"
+                v-model="newProject.name"
+                class="input"
+                placeholder="Ej. Hotel Giralda"
+                required
+              />
+            </div>
+
+            <div class="field">
+              <label class="field-label" for="p-cliente">Cliente (opcional)</label>
+              <input
+                id="p-cliente"
+                v-model="newProject.client"
+                class="input"
+                placeholder="Ej. Hoteles del Sur, S.L."
+              />
+            </div>
+
+            <label class="switch">
+              <input v-model="newProject.active" type="checkbox" />
+              <span class="switch-text">
+                <strong>Activo</strong><br />
+                <span class="small muted">
+                  Si lo desactivas, deja de aparecer al imputar horas, pero el
+                  histórico se conserva.
+                </span>
+              </span>
+            </label>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" :disabled="guardando">
+                <AppIcon v-if="!editando" name="mas" :size="16" />
+                {{ guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear proyecto' }}
+              </button>
+              <button v-if="editando" type="button" class="btn btn-ghost" @click="limpiar">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel-head">
+          <AppIcon name="puesto" :size="17" />
+          <h3>Proyectos</h3>
+          <span class="spacer"></span>
+          <span class="pill pill-plain small">{{ projects.length }}</span>
+        </header>
+
+        <p v-if="projects.length === 0" class="panel-body muted small">
+          Todavía no hay ningún proyecto. Crea el primero para que el equipo
+          pueda imputarle horas.
+        </p>
+
+        <ul v-else class="lista">
+          <li
+            v-for="p in projects"
+            :key="p.id"
+            class="fila"
+            :class="{ activa: editando === p.id, elegida: proyectoSel === p.id }"
+          >
+            <button type="button" class="fila-elegir" @click="elegirProyecto(p.id)">
+              <span class="fila-texto">
+                <strong>{{ p.name }}</strong>
+                <span class="small dim">
+                  {{ p.client || 'Sin cliente' }} ·
+                  {{ cuentaProductos(p.id) }}
+                  {{ cuentaProductos(p.id) === 1 ? 'producto' : 'productos' }}
+                </span>
+              </span>
+            </button>
+            <span v-if="!p.active" class="pill pill-plain">Inactivo</span>
+
+            <span v-if="borrando === p.id" class="acciones confirmar">
+              <span class="small">¿Seguro?</span>
+              <button type="button" class="btn btn-danger btn-sm" @click="borrarProyecto(p.id)">
+                Sí, borrar
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm" @click="borrando = null">
+                No
+              </button>
+            </span>
+            <span v-else class="acciones">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                :aria-label="`Editar ${p.name}`"
+                @click="editarProyecto(p)"
+              >
+                <AppIcon name="editar" :size="15" />
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                :aria-label="`Borrar ${p.name}`"
+                @click="borrando = p.id"
+              >
+                <AppIcon name="borrar" :size="15" />
+              </button>
+            </span>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- Productos del proyecto elegido -->
     <section class="panel">
       <header class="panel-head">
         <AppIcon name="tareas" :size="17" />
-        <h3>{{ editando ? 'Editar tarea' : 'Nueva tarea' }}</h3>
-      </header>
-      <div class="panel-body">
-        <form class="form-grid form-grid-2" @submit.prevent="guardarTarea">
-          <div class="field span-2">
-            <label class="field-label" for="t-titulo">Título</label>
-            <input
-              id="t-titulo"
-              v-model="newTask.title"
-              class="input"
-              placeholder="Ej. Montar la campana del office"
-              required
-            />
-          </div>
-
-          <div class="field span-2">
-            <label class="field-label" for="t-desc">Descripción</label>
-            <textarea
-              id="t-desc"
-              v-model="newTask.description"
-              class="textarea"
-              placeholder="Detalles, materiales, dónde es…"
-            ></textarea>
-          </div>
-
-          <div class="field">
-            <label class="field-label" for="t-quien">Asignar a</label>
-            <select id="t-quien" v-model="newTask.assigned_to" class="select">
-              <option value="">Sin asignar</option>
-              <option v-for="u in users" :key="u.id" :value="u.id">
-                {{ u.full_name || u.email }}
-              </option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label class="field-label" for="t-fecha">Fecha límite</label>
-            <input id="t-fecha" v-model="newTask.due_date" class="input" type="date" />
-          </div>
-
-          <div class="form-actions span-2">
-            <button type="submit" class="btn btn-primary" :disabled="guardando">
-              <AppIcon v-if="!editando" name="mas" :size="16" />
-              {{ guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear tarea' }}
-            </button>
-            <button v-if="editando" type="button" class="btn btn-ghost" @click="limpiar">
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
-    </section>
-
-    <section class="panel">
-      <header class="panel-head">
-        <AppIcon name="tareas" :size="17" />
-        <h3>Tareas</h3>
+        <h3>Productos</h3>
         <span class="spacer"></span>
-        <span class="pill pill-plain small">{{ tasks.length }}</span>
+        <span v-if="proyectoActual" class="pill pill-accent">{{ proyectoActual.name }}</span>
       </header>
 
-      <p v-if="tasks.length === 0" class="panel-body muted small">
-        Todavía no has creado ninguna tarea.
+      <p v-if="!proyectoActual" class="panel-body muted small">
+        Elige un proyecto de la lista de la izquierda para ver y crear sus
+        productos.
       </p>
 
-      <ul v-else class="lista">
-        <li v-for="t in tasks" :key="t.id" class="fila" :class="{ activa: editando === t.id }">
-          <span class="fila-texto">
-            <strong>{{ t.title }}</strong>
-            <span class="small dim">
-              {{ nombreDe(t.assigned_to, 'Sin asignar') }}
-              <template v-if="t.due_date"> · {{ formatDate(t.due_date) }}</template>
-            </span>
-          </span>
-          <span
-            class="pill"
-            :class="
-              t.status === 'done'
-                ? 'pill-ok'
-                : t.status === 'in_progress'
-                  ? 'pill-accent'
-                  : 'pill-plain'
-            "
-          >
-            {{ t.status === 'done' ? 'Hecha' : t.status === 'in_progress' ? 'En curso' : 'Pendiente' }}
-          </span>
+      <template v-else>
+        <div class="panel-body">
+          <form class="form-grid" @submit.prevent="guardarProducto">
+            <div class="field">
+              <label class="field-label" for="pr-nombre">
+                {{ editandoProd ? 'Editar producto' : 'Nuevo producto' }}
+              </label>
+              <input
+                id="pr-nombre"
+                v-model="newProduct.name"
+                class="input"
+                placeholder="Ej. Campana mural 3000×1100"
+                required
+              />
+            </div>
 
-          <span v-if="borrando === t.id" class="acciones confirmar">
-            <span class="small">¿Seguro?</span>
-            <button type="button" class="btn btn-danger btn-sm" @click="borrarTarea(t.id)">
-              Sí, borrar
-            </button>
-            <button type="button" class="btn btn-ghost btn-sm" @click="borrando = null">
-              No
-            </button>
-          </span>
-          <span v-else class="acciones">
-            <button
-              type="button"
-              class="btn btn-ghost btn-sm"
-              :aria-label="`Editar ${t.title}`"
-              @click="editarTarea(t)"
-            >
-              <AppIcon name="editar" :size="15" />
-            </button>
-            <button
-              type="button"
-              class="btn btn-ghost btn-sm"
-              :aria-label="`Borrar ${t.title}`"
-              @click="borrando = t.id"
-            >
-              <AppIcon name="borrar" :size="15" />
-            </button>
-          </span>
-        </li>
-      </ul>
+            <label class="switch">
+              <input v-model="newProduct.active" type="checkbox" />
+              <span class="switch-text"><strong>Activo</strong></span>
+            </label>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" :disabled="guardando">
+                <AppIcon v-if="!editandoProd" name="mas" :size="16" />
+                {{ guardando ? 'Guardando…' : editandoProd ? 'Guardar cambios' : 'Añadir producto' }}
+              </button>
+              <button
+                v-if="editandoProd"
+                type="button"
+                class="btn btn-ghost"
+                @click="editandoProd = null; newProduct = { name: '', active: true }"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <p v-if="productosDelProyecto.length === 0" class="panel-foot muted small">
+          Este proyecto todavía no tiene productos.
+        </p>
+
+        <ul v-else class="lista lista-arriba">
+          <li
+            v-for="p in productosDelProyecto"
+            :key="p.id"
+            class="fila"
+            :class="{ activa: editandoProd === p.id }"
+          >
+            <span class="fila-texto">
+              <strong>{{ p.name }}</strong>
+            </span>
+            <span v-if="!p.active" class="pill pill-plain">Inactivo</span>
+
+            <span v-if="borrando === p.id" class="acciones confirmar">
+              <span class="small">¿Seguro?</span>
+              <button type="button" class="btn btn-danger btn-sm" @click="borrarProducto(p.id)">
+                Sí, borrar
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm" @click="borrando = null">
+                No
+              </button>
+            </span>
+            <span v-else class="acciones">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                :aria-label="`Editar ${p.name}`"
+                @click="editarProducto(p)"
+              >
+                <AppIcon name="editar" :size="15" />
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                :aria-label="`Borrar ${p.name}`"
+                @click="borrando = p.id"
+              >
+                <AppIcon name="borrar" :size="15" />
+              </button>
+            </span>
+          </li>
+        </ul>
+      </template>
     </section>
   </div>
 
@@ -775,6 +961,7 @@ onMounted(async () => {
               {{ formatDateTime(ev.start_at) }} · {{ nombreDe(ev.assigned_to) }}
             </span>
           </span>
+
           <span v-if="borrando === ev.id" class="acciones confirmar">
             <span class="small">¿Seguro?</span>
             <button type="button" class="btn btn-danger btn-sm" @click="borrarEvento(ev.id)">
@@ -880,6 +1067,7 @@ onMounted(async () => {
               {{ formatDate(n.created_at) }} · {{ nombreDe(n.assigned_to) }}
             </span>
           </span>
+
           <span v-if="borrando === n.id" class="acciones confirmar">
             <span class="small">¿Seguro?</span>
             <button type="button" class="btn btn-danger btn-sm" @click="borrarAviso(n.id)">
@@ -1008,6 +1196,10 @@ onMounted(async () => {
   padding: 0;
 }
 
+.lista-arriba {
+  border-top: 1px solid var(--border-soft);
+}
+
 .fila {
   display: flex;
   align-items: center;
@@ -1026,6 +1218,12 @@ onMounted(async () => {
 .fila.activa {
   background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* El proyecto cuyos productos se están viendo */
+.fila.elegida:not(.activa) {
+  background: var(--surface-inset);
+  box-shadow: inset 3px 0 0 var(--border-strong);
 }
 
 /* El texto crece hasta empujar pastillas y botones a la derecha, pero por
@@ -1050,6 +1248,24 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* En la lista de proyectos, el texto es el botón que elige el proyecto. */
+.fila-elegir {
+  display: flex;
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.fila-elegir:hover .fila-texto strong {
+  color: var(--accent-text);
 }
 
 .fila .acciones {

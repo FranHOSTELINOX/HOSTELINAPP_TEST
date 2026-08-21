@@ -18,14 +18,13 @@ watch(session, (newSession) => {
   if (!newSession && route.meta.requiresAuth) {
     router.push({ name: 'login' })
   } else if (newSession && route.name === 'login') {
-    router.push({ name: 'tareas' })
+    router.push({ name: 'tiempos' })
   }
 })
 
 type NavItem = { to: string; label: string; short: string; icon: IconName; admin?: boolean }
 
 const navItems: NavItem[] = [
-  { to: '/tareas', label: 'Tareas', short: 'Tareas', icon: 'tareas' },
   { to: '/tiempos', label: 'Tiempos', short: 'Tiempos', icon: 'reloj' },
   { to: '/calendario', label: 'Calendario', short: 'Agenda', icon: 'calendario' },
   { to: '/avisos', label: 'Avisos', short: 'Avisos', icon: 'avisos' },
@@ -56,7 +55,7 @@ const themeLabel = computed(() =>
   <div v-else class="shell">
     <!-- ---------- Barra lateral (ordenador) ---------- -->
     <aside class="sidebar">
-      <RouterLink to="/tareas" class="brand">
+      <RouterLink to="/tiempos" class="brand">
         <BrandMark :size="36" />
         <span class="brand-text">
           <strong>HostelinApp</strong>
@@ -111,7 +110,7 @@ const themeLabel = computed(() =>
     <div class="shell-main">
       <!-- ---------- Barra superior (móvil) ---------- -->
       <header class="topbar">
-        <RouterLink to="/tareas" class="brand brand-compact">
+        <RouterLink to="/tiempos" class="brand brand-compact">
           <BrandMark :size="30" />
           <strong>HostelinApp</strong>
         </RouterLink>
