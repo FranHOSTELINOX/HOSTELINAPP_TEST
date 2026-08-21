@@ -1,26 +1,31 @@
 import { ref } from 'vue'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import type { Role } from '../lib/database.types'
+import type { Database, Role } from '../lib/database.types'
+
+type Profile = Database['public']['Tables']['profiles']['Row']
 
 // Estado de sesión compartido por toda la app (patrón "store" sencillo,
 // sin librerías extra como Pinia: para este tamaño de app no hace falta).
 export const session = ref<Session | null>(null)
 export const role = ref<Role | null>(null)
+export const profile = ref<Profile | null>(null)
 export const authReady = ref(false)
 
 async function loadProfileRole(userId: string) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('role')
+    .select('*')
     .eq('id', userId)
     .single()
 
   if (error) {
     console.error('No se pudo cargar el perfil:', error.message)
     role.value = null
+    profile.value = null
     return
   }
+  profile.value = data
   role.value = data.role
 }
 
@@ -38,6 +43,7 @@ export async function initAuth() {
       await loadProfileRole(newSession.user.id)
     } else {
       role.value = null
+      profile.value = null
     }
   })
 }

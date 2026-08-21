@@ -35,13 +35,17 @@ esas tareas, **registran tiempos** trabajados, y consultan un **calendario** y
 
 ```
 src/
+  style.css              sistema de diseño "Acero" (tokens + componentes CSS)
+  components/            piezas compartidas de interfaz (AppIcon, BrandMark,
+                           PageHeader, EmptyState, AlertMessage, LoadingList)
   lib/supabase.ts        cliente único de Supabase
   lib/database.types.ts  tipos TS a mano que reflejan el esquema SQL
   lib/format.ts           utilidades pequeñas (con test)
-  stores/auth.ts          estado de sesión/rol, sin Pinia (la app es pequeña)
+  stores/auth.ts          estado de sesión/rol/perfil, sin Pinia (app pequeña)
+  stores/theme.ts         modo claro/oscuro, recordado en el navegador
   router/index.ts         rutas + guardas por sesión/rol
   views/                  una vista por pantalla (Login, Tasks, TimeEntries,
-                           Calendar, Notices, Admin)
+                           Calendar, Notices, Admin, ChangePassword)
 supabase/migrations/      SQL versionado, en orden (0001_, 0002_, ...)
 supabase/functions/       Edge Functions (una carpeta por función)
 .github/workflows/        CI/CD (ver docs/deploy.md)
@@ -71,6 +75,13 @@ test/                     tests de Vitest
   solo las usa el administrador).
 - **Textos de la interfaz**: en español, tono sencillo (el dueño del
   proyecto es principiante).
+- **Estilos**: todo sale del sistema de diseño de `src/style.css`. Antes de
+  escribir CSS nuevo, mira si ya existe la clase (`panel`, `btn`,
+  `btn-primary`, `input`, `select`, `textarea`, `field`, `pill`, `alert`,
+  `empty`, `stack`, `row`…). Nunca pongas colores a pelo: usa los tokens
+  (`var(--surface)`, `var(--text-muted)`, `var(--accent)`…), que son los que
+  cambian solos entre modo claro y oscuro. Los estilos propios de una
+  pantalla van en su `<style scoped>`. Ver `docs/diseno.md`.
 - **Sin Pinia ni frameworks extra**: mientras la app siga siendo pequeña,
   usa el patrón de `src/stores/auth.ts` (refs reactivos exportados). Si el
   estado compartido crece mucho, se puede reconsiderar.
@@ -93,6 +104,8 @@ npm run build   # build de producción real (falla si algo no compila)
   necesita.
 - `docs/data-model.md` — las 5 tablas, para qué sirve cada una y quién puede
   ver/tocar qué fila.
+- `docs/diseno.md` — el sistema de diseño: colores, tipografías, las clases
+  que ya existen y cómo montar una pantalla nueva que no desentone.
 
 ## Configuración pendiente que NO puede hacer una sesión de Claude
 
