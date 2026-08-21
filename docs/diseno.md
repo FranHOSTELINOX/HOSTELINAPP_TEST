@@ -5,18 +5,23 @@ Guía para que cualquier pantalla nueva se parezca a las que ya hay.
 ## La idea
 
 Hostelinox lleva desde 1982 fabricando en **acero inoxidable**. La app coge
-ese material como lenguaje visual:
+ese material como lenguaje visual, y los colores salen del propio logo:
 
 - **Superficies de acero**: cada tarjeta es una chapa. Gris frío, un hilo de
   luz en el canto de arriba y un grano vertical finísimo, como el cepillado
-  del inox.
+  del inox. Es el mismo plateado del óvalo del logo.
 - **Geometría de taller**: esquinas poco redondeadas, rejillas alineadas,
   nada de burbujas.
-- **El naranja de la fragua**: el único color cálido, y se usa con cuentagotas
-  — solo para lo que está *vivo* o hay que *tocar*: el botón principal, la
-  sección en la que estás, un registro de tiempo en marcha, un aviso nuevo.
+- **El azul marino de la "H"** (`#2a0e72`) es el color de acción: el botón
+  principal, la sección en la que estás, el foco del teclado.
+- **El rojo de "ostelinox"** (`#fd2015`) se reserva para lo que borra o
+  falla, y para un par de destellos de marca en la pantalla de acceso.
 
-Regla práctica: si en una pantalla hay más de dos o tres cosas naranjas,
+**Por qué el azul manda y el rojo no**: si el botón principal fuera rojo,
+sería idéntico al de "Sí, borrar". Cada color hace el trabajo que su tono
+sugiere.
+
+Regla práctica: si en una pantalla hay más de dos o tres cosas de color,
 sobra alguna.
 
 ## Colores
@@ -31,12 +36,12 @@ Nunca escribas un color a pelo en un componente. Usa los *tokens* de
 | `--surface-inset` | huecos hundidos: inputs, pastillas, fondos de pestañas |
 | `--border` / `--border-strong` | líneas y bordes |
 | `--text` / `--text-muted` / `--text-dim` | texto principal / secundario / apagado |
-| `--accent` / `--accent-fg` | el naranja y el color que va encima de él |
-| `--accent-soft` / `--accent-text` | versión suave, para fondos y textos naranjas |
+| `--accent` / `--accent-fg` | el azul de marca y el color que va encima de él |
+| `--accent-soft` / `--accent-text` | versión suave, para fondos y textos en azul |
 | `--ok-*`, `--warn-*`, `--danger-*` | verde, ámbar y rojo de estado |
 
-Si algún día cambia el color de marca, se toca **solo** la escala `--ember-*`
-del principio de `src/style.css` y se reajusta la app entera.
+Si algún día cambia la marca, se tocan **solo** las escalas `--azul-*` y
+`--rojo-*` del principio de `src/style.css` y se reajusta la app entera.
 
 ## Tipografías
 
@@ -80,7 +85,12 @@ En `src/components/`:
 - `AppIcon.vue` — los iconos, dibujados a mano en `icons.ts`. No hay librería
   de iconos: si necesitas uno nuevo, añade su `path` ahí con la misma rejilla
   de 24×24.
-- `BrandMark.vue` — la placa de acero con la "H" y el travesaño al rojo.
+- `BrandLogo.vue` — el logo de Hostelinox. `<BrandLogo :width="186" />` da
+  solo el óvalo, que vale sobre cualquier fondo porque es plateado y no
+  tiene negro. `completo` añade debajo la razón social, y como esa línea es
+  negra hay una variante aclarada que se pide con `sobre-oscuro`. Cuál usar
+  se dice con la prop, no detectando el tema: la chapa del acceso es oscura
+  siempre, tenga el usuario el modo que tenga.
 - `EmptyState.vue`, `AlertMessage.vue`, `LoadingList.vue` — para no repetir
   el "no hay nada", el error y el "cargando…" en cada vista.
 

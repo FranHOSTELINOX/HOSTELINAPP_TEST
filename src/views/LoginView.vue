@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { signInWithEmail } from '../stores/auth'
 import AppIcon from '../components/AppIcon.vue'
-import BrandMark from '../components/BrandMark.vue'
+import BrandLogo from '../components/BrandLogo.vue'
 import AlertMessage from '../components/AlertMessage.vue'
 
 const router = useRouter()
@@ -17,7 +17,7 @@ async function handleEmailLogin() {
   loading.value = true
   try {
     await signInWithEmail(email.value, password.value)
-    await router.push({ name: 'tareas' })
+    await router.push({ name: 'tiempos' })
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'No se pudo iniciar sesión'
   } finally {
@@ -32,11 +32,8 @@ async function handleEmailLogin() {
     <section class="login-hero">
       <div class="hero-inner">
         <div class="hero-brand">
-          <BrandMark :size="44" />
-          <span class="hero-brand-text">
-            <strong>HostelinApp</strong>
-            <span>Hostelinox</span>
-          </span>
+          <BrandLogo :width="286" completo sobre-oscuro />
+          <span class="hero-brand-app">HostelinApp</span>
         </div>
 
         <div class="hero-copy">
@@ -46,14 +43,14 @@ async function handleEmailLogin() {
             <em>ordenado</em>.
           </h1>
           <p class="hero-text">
-            Tareas, tiempos, calendario y avisos del equipo de Hostelinox en un
-            único sitio. Entra con tu cuenta para empezar.
+            Las horas, el calendario y los avisos del equipo de Hostelinox en
+            un único sitio. Entra con tu cuenta para empezar.
           </p>
         </div>
 
         <ul class="hero-list">
-          <li><AppIcon name="tareas" :size="16" /> Tus tareas y su estado, al día</li>
-          <li><AppIcon name="reloj" :size="16" /> Registro de horas con un botón</li>
+          <li><AppIcon name="reloj" :size="16" /> Imputa tus horas a cada producto</li>
+          <li><AppIcon name="puesto" :size="16" /> Proyectos y productos del taller</li>
           <li><AppIcon name="calendario" :size="16" /> Calendario y avisos compartidos</li>
         </ul>
       </div>
@@ -142,7 +139,7 @@ async function handleEmailLogin() {
   background-color: var(--steel-950);
   background-image: radial-gradient(
       120% 90% at 12% 0%,
-      rgba(249, 115, 22, 0.16) 0%,
+      rgba(253, 32, 21, 0.14) 0%,
       transparent 55%
     ),
     linear-gradient(155deg, #26313f 0%, #161d27 38%, #0b1017 100%);
@@ -170,9 +167,9 @@ async function handleEmailLogin() {
   background: linear-gradient(
     90deg,
     transparent,
-    var(--ember-500) 35%,
-    var(--ember-300) 50%,
-    var(--ember-500) 65%,
+    var(--rojo-500) 35%,
+    var(--rojo-300) 50%,
+    var(--rojo-500) 65%,
     transparent
   );
 }
@@ -185,9 +182,9 @@ async function handleEmailLogin() {
     background: linear-gradient(
       180deg,
       transparent,
-      var(--ember-500) 35%,
-      var(--ember-300) 50%,
-      var(--ember-500) 65%,
+      var(--rojo-500) 35%,
+      var(--rojo-300) 50%,
+      var(--rojo-500) 65%,
       transparent
     );
   }
@@ -214,30 +211,18 @@ async function handleEmailLogin() {
 
 .hero-brand {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.hero-brand-text {
-  display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  align-items: flex-start;
+  gap: 0.625rem;
 }
 
-.hero-brand-text strong {
-  font-family: var(--font-display);
-  font-size: 1.0625rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: #fff;
-}
-
-.hero-brand-text span {
+.hero-brand-app {
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--steel-400);
+  padding-left: 3px;
 }
 
 .hero-copy {
@@ -252,7 +237,7 @@ async function handleEmailLogin() {
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ember-300);
+  color: var(--rojo-300);
 }
 
 .hero-title {
@@ -267,7 +252,7 @@ async function handleEmailLogin() {
 
 .hero-title em {
   font-style: normal;
-  background: linear-gradient(100deg, var(--ember-300), var(--ember-500));
+  background: linear-gradient(100deg, var(--rojo-300), var(--rojo-500));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -300,7 +285,7 @@ async function handleEmailLogin() {
 
 .hero-list svg {
   flex: none;
-  color: var(--ember-400);
+  color: var(--rojo-400);
 }
 
 /* ---------------- El panel del formulario ---------------- */

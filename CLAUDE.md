@@ -70,8 +70,9 @@ Eso sí hay que pedírselo, y explicándole paso a paso dónde hacer clic. Ver l
 ```
 src/
   style.css              sistema de diseño "Acero" (tokens + componentes CSS)
-  components/            piezas compartidas de interfaz (AppIcon, BrandMark,
+  components/            piezas compartidas de interfaz (AppIcon, BrandLogo,
                            PageHeader, EmptyState, AlertMessage, LoadingList)
+  assets/                 el logo de Hostelinox en sus tres versiones
   lib/supabase.ts        cliente único de Supabase
   lib/database.types.ts  tipos TS a mano que reflejan el esquema SQL
   lib/format.ts           utilidades pequeñas (con test)

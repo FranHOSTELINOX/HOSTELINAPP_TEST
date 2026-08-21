@@ -5,7 +5,7 @@ import { profile, role, session, signOut } from './stores/auth'
 import { theme, toggleTheme } from './stores/theme'
 import { initials } from './lib/format'
 import AppIcon from './components/AppIcon.vue'
-import BrandMark from './components/BrandMark.vue'
+import BrandLogo from './components/BrandLogo.vue'
 import type { IconName } from './components/icons'
 
 const route = useRoute()
@@ -56,11 +56,8 @@ const themeLabel = computed(() =>
     <!-- ---------- Barra lateral (ordenador) ---------- -->
     <aside class="sidebar">
       <RouterLink to="/tiempos" class="brand">
-        <BrandMark :size="36" />
-        <span class="brand-text">
-          <strong>HostelinApp</strong>
-          <span class="brand-sub">Hostelinox</span>
-        </span>
+        <BrandLogo :width="186" />
+        <span class="brand-sub">HostelinApp</span>
       </RouterLink>
 
       <nav class="side-nav" aria-label="Secciones">
@@ -111,8 +108,7 @@ const themeLabel = computed(() =>
       <!-- ---------- Barra superior (móvil) ---------- -->
       <header class="topbar">
         <RouterLink to="/tiempos" class="brand brand-compact">
-          <BrandMark :size="30" />
-          <strong>HostelinApp</strong>
+          <BrandLogo :width="132" />
         </RouterLink>
         <span class="spacer"></span>
         <button
@@ -182,34 +178,28 @@ const themeLabel = computed(() =>
 /* ---------------- Marca ---------------- */
 .brand {
   display: flex;
-  align-items: center;
-  gap: 0.625rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.375rem;
   text-decoration: none;
   color: var(--text);
   min-width: 0;
 }
 
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-  min-width: 0;
+.brand-compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
 }
 
-.brand-text strong,
-.brand-compact strong {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
+/* El nombre de la app, debajo del logo de la empresa */
 .brand-sub {
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-dim);
+  padding-left: 2px;
 }
 
 /* ---------------- Barra lateral ---------------- */

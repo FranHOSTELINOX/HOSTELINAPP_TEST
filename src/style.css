@@ -2,11 +2,16 @@
    HostelinApp — sistema de diseño "Acero"
    --------------------------------------------------------------------------
    Inspirado en el material con el que trabaja Hostelinox: acero inoxidable.
-   Superficies cepilladas, geometría precisa, hilos de luz en los bordes y un
-   acento cálido (el naranja de la fragua) sobre gris frío.
+   Superficies cepilladas, geometría precisa e hilos de luz en los bordes.
 
-   Si algún día hay que cambiar el color de marca, se cambia SOLO la escala
-   "--ember-*" de aquí abajo y toda la app se reajusta sola.
+   Los dos colores salen del logo de la empresa: el azul marino de la "H"
+   (#2a0e72) y el rojo de "ostelinox" (#fd2015). El azul es el color de
+   accion (botones, seccion activa, foco) y el rojo se reserva para lo que
+   borra o falla; si el boton principal fuera rojo, seria indistinguible del
+   de borrar.
+
+   Si algun dia cambia la marca, se cambian SOLO las escalas "--azul-*" y
+   "--rojo-*" de aqui abajo y toda la app se reajusta sola.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -28,16 +33,27 @@
   --steel-900: #161d27;
   --steel-950: #0b1017;
 
-  /* Fragua: el acento cálido de la marca */
-  --ember-50: #fff5ed;
-  --ember-100: #ffe8d6;
-  --ember-200: #fed0ae;
-  --ember-300: #fdba74;
-  --ember-400: #fb923c;
-  --ember-500: #f97316;
-  --ember-600: #ea580c;
-  --ember-700: #c2410c;
-  --ember-800: #9a3412;
+  /* Azul marino de la "H" del logo (#2a0e72): el color de accion */
+  --azul-50: #f1ecfe;
+  --azul-100: #e3d8fd;
+  --azul-200: #ccbbf7;
+  --azul-300: #9f80ef;
+  --azul-400: #7040e7;
+  --azul-500: #4a19c8;
+  --azul-600: #39139a;
+  --azul-700: #2a0e72;
+  --azul-800: #220b5b;
+  --azul-900: #190844;
+
+  /* Rojo de "ostelinox" (#fd2015): la marca y lo que borra */
+  --rojo-50: #ffeceb;
+  --rojo-100: #fed9d7;
+  --rojo-200: #fdb3af;
+  --rojo-300: #fc837d;
+  --rojo-400: #fc5d55;
+  --rojo-500: #fd2015;
+  --rojo-600: #da1b10;
+  --rojo-700: #b4160e;
 
   /* Semáforo de estados */
   --green-100: #d9f5e4;
@@ -48,10 +64,6 @@
   --amber-500: #d99e0b;
   --amber-600: #b07d05;
   --amber-900: #4a3403;
-  --red-100: #fde3e1;
-  --red-500: #e14b40;
-  --red-600: #c0362c;
-  --red-900: #4d1611;
 
   /* Tipografía */
   --font-display: 'Archivo', 'Segoe UI', system-ui, sans-serif;
@@ -92,12 +104,12 @@
   --text-dim: var(--steel-400);
   --text-invert: #ffffff;
 
-  --accent: var(--ember-600);
-  --accent-hover: var(--ember-700);
+  --accent: var(--azul-700);
+  --accent-hover: var(--azul-800);
   --accent-fg: #ffffff;
-  --accent-soft: var(--ember-50);
-  --accent-soft-border: var(--ember-200);
-  --accent-text: var(--ember-700);
+  --accent-soft: var(--azul-50);
+  --accent-soft-border: var(--azul-200);
+  --accent-text: var(--azul-700);
 
   --ok-bg: var(--green-100);
   --ok-fg: var(--green-600);
@@ -105,9 +117,9 @@
   --warn-bg: var(--amber-100);
   --warn-fg: var(--amber-600);
   --warn-line: #f2d98a;
-  --danger-bg: var(--red-100);
-  --danger-fg: var(--red-600);
-  --danger-line: #f4b3ad;
+  --danger-bg: var(--rojo-50);
+  --danger-fg: var(--rojo-700);
+  --danger-line: var(--rojo-200);
 
   /* El "hilo de luz" del borde superior de las piezas metálicas */
   --sheen: rgba(255, 255, 255, 0.9);
@@ -117,7 +129,7 @@
   --shadow-sm: 0 1px 2px rgba(11, 16, 23, 0.05), 0 2px 6px rgba(11, 16, 23, 0.05);
   --shadow-md: 0 2px 4px rgba(11, 16, 23, 0.05), 0 8px 20px rgba(11, 16, 23, 0.07);
   --shadow-lg: 0 4px 8px rgba(11, 16, 23, 0.06), 0 18px 44px rgba(11, 16, 23, 0.11);
-  --ring: 0 0 0 3px rgba(234, 88, 12, 0.22);
+  --ring: 0 0 0 3px rgba(42, 14, 114, 0.22);
 }
 
 /* --------------------------------------------------------------------------
@@ -140,12 +152,12 @@
     --text-dim: var(--steel-500);
     --text-invert: var(--steel-950);
 
-    --accent: var(--ember-500);
-    --accent-hover: var(--ember-400);
-    --accent-fg: #1a0d04;
-    --accent-soft: rgba(249, 115, 22, 0.12);
-    --accent-soft-border: rgba(249, 115, 22, 0.3);
-    --accent-text: var(--ember-300);
+    --accent: var(--azul-400);
+    --accent-hover: var(--azul-300);
+    --accent-fg: #ffffff;
+    --accent-soft: rgba(112, 64, 231, 0.18);
+    --accent-soft-border: rgba(112, 64, 231, 0.38);
+    --accent-text: var(--azul-300);
 
     --ok-bg: rgba(22, 163, 106, 0.16);
     --ok-fg: #4ade9b;
@@ -153,9 +165,9 @@
     --warn-bg: rgba(217, 158, 11, 0.16);
     --warn-fg: #f0c14b;
     --warn-line: rgba(217, 158, 11, 0.36);
-    --danger-bg: rgba(225, 75, 64, 0.16);
-    --danger-fg: #ff8a80;
-    --danger-line: rgba(225, 75, 64, 0.36);
+    --danger-bg: rgba(253, 32, 21, 0.16);
+    --danger-fg: var(--rojo-300);
+    --danger-line: rgba(253, 32, 21, 0.38);
 
     --sheen: rgba(255, 255, 255, 0.07);
     --grain: rgba(255, 255, 255, 0.016);
@@ -164,7 +176,7 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.45), 0 18px 44px rgba(0, 0, 0, 0.55);
-    --ring: 0 0 0 3px rgba(249, 115, 22, 0.3);
+    --ring: 0 0 0 3px rgba(112, 64, 231, 0.4);
   }
 }
 
@@ -185,12 +197,12 @@
   --text-dim: var(--steel-500);
   --text-invert: var(--steel-950);
 
-  --accent: var(--ember-500);
-  --accent-hover: var(--ember-400);
-  --accent-fg: #1a0d04;
-  --accent-soft: rgba(249, 115, 22, 0.12);
-  --accent-soft-border: rgba(249, 115, 22, 0.3);
-  --accent-text: var(--ember-300);
+  --accent: var(--azul-400);
+  --accent-hover: var(--azul-300);
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(112, 64, 231, 0.18);
+  --accent-soft-border: rgba(112, 64, 231, 0.38);
+  --accent-text: var(--azul-300);
 
   --ok-bg: rgba(22, 163, 106, 0.16);
   --ok-fg: #4ade9b;
@@ -198,9 +210,9 @@
   --warn-bg: rgba(217, 158, 11, 0.16);
   --warn-fg: #f0c14b;
   --warn-line: rgba(217, 158, 11, 0.36);
-  --danger-bg: rgba(225, 75, 64, 0.16);
-  --danger-fg: #ff8a80;
-  --danger-line: rgba(225, 75, 64, 0.36);
+  --danger-bg: rgba(253, 32, 21, 0.16);
+  --danger-fg: var(--rojo-300);
+  --danger-line: rgba(253, 32, 21, 0.38);
 
   --sheen: rgba(255, 255, 255, 0.07);
   --grain: rgba(255, 255, 255, 0.016);
@@ -209,7 +221,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.45), 0 18px 44px rgba(0, 0, 0, 0.55);
-  --ring: 0 0 0 3px rgba(249, 115, 22, 0.3);
+  --ring: 0 0 0 3px rgba(112, 64, 231, 0.4);
 
   color-scheme: dark;
 }

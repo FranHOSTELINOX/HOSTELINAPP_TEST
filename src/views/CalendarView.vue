@@ -251,8 +251,8 @@ onMounted(async () => {
 
 .taco.hoy {
   color: var(--accent-fg);
-  background: linear-gradient(180deg, var(--ember-500), var(--ember-600));
-  border-color: var(--ember-700);
+  background: linear-gradient(180deg, var(--azul-500), var(--azul-700));
+  border-color: var(--azul-900);
 }
 
 .taco.manana {
