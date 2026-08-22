@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { to: '/tiempos', label: 'Tiempos', short: 'Tiempos', icon: 'reloj' },
   { to: '/calendario', label: 'Calendario', short: 'Agenda', icon: 'calendario' },
   { to: '/avisos', label: 'Avisos', short: 'Avisos', icon: 'avisos' },
+  { to: '/horas', label: 'Horas del equipo', short: 'Horas', icon: 'barras', admin: true },
   { to: '/admin', label: 'Administración', short: 'Admin', icon: 'admin', admin: true },
 ]
 
@@ -56,7 +57,7 @@ const themeLabel = computed(() =>
     <!-- ---------- Barra lateral (ordenador) ---------- -->
     <aside class="sidebar">
       <RouterLink to="/tiempos" class="brand">
-        <BrandLogo :width="186" />
+        <BrandLogo :width="204" />
         <span class="brand-sub">HostelinApp</span>
       </RouterLink>
 
@@ -108,7 +109,7 @@ const themeLabel = computed(() =>
       <!-- ---------- Barra superior (móvil) ---------- -->
       <header class="topbar">
         <RouterLink to="/tiempos" class="brand brand-compact">
-          <BrandLogo :width="132" />
+          <BrandLogo :width="148" />
         </RouterLink>
         <span class="spacer"></span>
         <button

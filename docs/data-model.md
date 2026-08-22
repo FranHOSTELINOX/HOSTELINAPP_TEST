@@ -97,7 +97,9 @@ Las horas que imputa cada trabajador.
 | ended_at   | fin (null = todavía en marcha)               |
 
 **Quién ve/edita qué**: cada usuario ve y gestiona solo sus propias entradas;
-el admin ve y gestiona todas.
+el admin ve y gestiona todas. De eso vive la pantalla "Horas del equipo"
+(`/horas`, solo admin): no necesita permisos especiales ni vistas nuevas,
+porque la política de select ya se los da.
 
 **El producto es obligatorio para el equipo, no para el admin**: la interfaz
 no deja fichar a un usuario normal sin elegir proyecto y producto. A nivel de

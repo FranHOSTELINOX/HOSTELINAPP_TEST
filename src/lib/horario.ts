@@ -94,6 +94,26 @@ export function minutosPrevistos(fecha: Date): number {
   return tramosDelDia(fecha).reduce((suma, t) => suma + (t.hasta - t.desde), 0)
 }
 
+/**
+ * Minutos de trabajo previstos entre dos fechas, contando día a día.
+ * Sirve para comparar lo imputado con lo que tocaba en ese periodo.
+ * El día de `hasta` cuenta entero.
+ */
+export function minutosPrevistosEnRango(desde: Date, hasta: Date): number {
+  const dia = new Date(desde)
+  dia.setHours(0, 0, 0, 0)
+  const fin = new Date(hasta)
+  fin.setHours(0, 0, 0, 0)
+
+  let total = 0
+  // Tope de seguridad por si llega un rango disparatado.
+  for (let i = 0; dia <= fin && i < 800; i++) {
+    total += minutosPrevistos(dia)
+    dia.setDate(dia.getDate() + 1)
+  }
+  return total
+}
+
 /** Medianoche del día de esa fecha. */
 function inicioDelDia(fecha: Date): Date {
   const d = new Date(fecha)

@@ -72,7 +72,7 @@ src/
   style.css              sistema de diseño "Acero" (tokens + componentes CSS)
   components/            piezas compartidas de interfaz (AppIcon, BrandLogo,
                            PageHeader, EmptyState, AlertMessage, LoadingList)
-  assets/                 el logo de Hostelinox en sus tres versiones
+  assets/                 el logo de Hostelinox (versión clara y oscura)
   lib/supabase.ts        cliente único de Supabase
   lib/database.types.ts  tipos TS a mano que reflejan el esquema SQL
   lib/format.ts           utilidades pequeñas (con test)
@@ -81,7 +81,8 @@ src/
   stores/theme.ts         modo claro/oscuro, recordado en el navegador
   router/index.ts         rutas + guardas por sesión/rol
   views/                  una vista por pantalla (Login, TimeEntries,
-                           Calendar, Notices, Admin, ChangePassword)
+                           Calendar, Notices, TeamHours, Admin,
+                           ChangePassword)
 supabase/migrations/      SQL versionado, en orden (0001_, 0002_, ...)
 supabase/functions/       Edge Functions (una carpeta por función)
 .github/workflows/        CI/CD (ver docs/deploy.md)

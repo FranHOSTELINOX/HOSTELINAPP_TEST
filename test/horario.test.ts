@@ -7,6 +7,7 @@ import {
   horasDelDia,
   minutosAHora,
   minutosPrevistos,
+  minutosPrevistosEnRango,
   msDentroDeHorario,
   tramosDelDia,
 } from '../src/lib/horario'
@@ -101,6 +102,31 @@ describe('minutosPrevistos', () => {
 
   it('el domingo, ninguna', () => {
     expect(minutosPrevistos(domingo(9))).toBe(0)
+  })
+})
+
+describe('minutosPrevistosEnRango', () => {
+  it('un solo día entre semana son diez horas', () => {
+    expect(minutosPrevistosEnRango(lunes(9), lunes(9))).toBe(600)
+  })
+
+  it('una semana de lunes a sábado: cinco días de 10 h más el sábado de 5', () => {
+    // Del lunes 17 al sábado 22 de agosto de 2026.
+    expect(minutosPrevistosEnRango(lunes(9), sabado(9))).toBe(5 * 600 + 300)
+  })
+
+  it('el domingo no suma', () => {
+    expect(minutosPrevistosEnRango(domingo(9), domingo(9))).toBe(0)
+    // Del lunes al domingo sale lo mismo que del lunes al sábado.
+    expect(minutosPrevistosEnRango(lunes(9), domingo(9))).toBe(5 * 600 + 300)
+  })
+
+  it('da cero si el rango va del revés', () => {
+    expect(minutosPrevistosEnRango(sabado(9), lunes(9))).toBe(0)
+  })
+
+  it('no le afecta la hora del día', () => {
+    expect(minutosPrevistosEnRango(lunes(23), lunes(1))).toBe(600)
   })
 })
 
