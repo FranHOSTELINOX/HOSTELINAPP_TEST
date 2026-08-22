@@ -125,6 +125,14 @@ function aISO(local: string): string {
  */
 async function motivoDeFuncion(err: unknown, porDefecto: string): Promise<string> {
   const respuesta = (err as { context?: Response })?.context
+
+  // 404 = la función no existe todavía en Supabase. Pasa cuando el token de
+  // despliegue caduca: el código está subido pero no llegó a desplegarse, y
+  // sin este aviso el administrador solo vería un error en inglés.
+  if (respuesta?.status === 404) {
+    return 'Esta función todavía no está instalada en Supabase. Hay que renovar el token de despliegue; avisa a quien lleve el proyecto.'
+  }
+
   if (respuesta && typeof respuesta.json === 'function') {
     try {
       const cuerpo = await respuesta.json()
