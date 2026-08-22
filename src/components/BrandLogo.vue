@@ -1,43 +1,34 @@
 <script setup lang="ts">
-// El logo de Hostelinox.
+// El logo de Hostelinox, entero: el óvalo completo y la razón social debajo.
 //
-//   <BrandLogo :width="186" />                     solo el óvalo
-//   <BrandLogo :width="286" completo />            con la razón social debajo
-//   <BrandLogo :width="286" completo sobre-oscuro />   ídem, sobre fondo oscuro
+//   <BrandLogo :width="200" />                el fondo lo decide el tema
+//   <BrandLogo :width="300" fondo="oscuro" />  forzado, para sitios siempre oscuros
 //
-// El óvalo vale igual sobre cualquier fondo: es plateado y no tiene ni un
-// píxel negro. El logo completo sí lleva la línea "HOSTELERIA E INOXIDABLES,
-// S.L." en negro, que sobre fondo oscuro no se vería; para eso está la
-// variante con esa línea aclarada.
-//
-// Cuál usar se dice con una prop y no detectando el modo claro/oscuro,
-// porque hay sitios (la chapa del acceso) que son oscuros siempre, tenga el
-// usuario el tema que tenga.
+// La línea "HOSTELERIA E INOXIDABLES, S.L." es negra y sobre fondo oscuro no
+// se vería, así que hay una segunda versión con esa línea aclarada. Cuál toca
+// se decide en JS y no con CSS, porque hay sitios (la chapa del acceso) que
+// son oscuros siempre, tenga el usuario el modo que tenga.
 import { computed } from 'vue'
-import ovalo from '../assets/logo-hostelinox.png'
-import completoClaro from '../assets/logo-hostelinox-completo.png'
-import completoOscuro from '../assets/logo-hostelinox-completo-oscuro.png'
+import { modoOscuro } from '../stores/theme'
+import claro from '../assets/logo-hostelinox-completo.png'
+import oscuro from '../assets/logo-hostelinox-completo-oscuro.png'
 
 const props = withDefaults(
-  defineProps<{ width?: number; completo?: boolean; sobreOscuro?: boolean }>(),
-  { width: 180, completo: false, sobreOscuro: false },
+  defineProps<{ width?: number; fondo?: 'auto' | 'claro' | 'oscuro' }>(),
+  { width: 200, fondo: 'auto' },
 )
 
-const src = computed(() => {
-  if (!props.completo) return ovalo
-  return props.sobreOscuro ? completoOscuro : completoClaro
-})
-
-const alto = computed(() => (props.completo ? 176 : 124))
-const ancho = computed(() => (props.completo ? 473 : 469))
+const enOscuro = computed(
+  () => props.fondo === 'oscuro' || (props.fondo === 'auto' && modoOscuro.value),
+)
 </script>
 
 <template>
   <img
     class="brand-logo"
-    :src="src"
-    :width="ancho"
-    :height="alto"
+    :src="enOscuro ? oscuro : claro"
+    width="760"
+    height="270"
     :style="{ width: `${props.width}px` }"
     alt="Hostelinox — Hostelería e Inoxidables, S.L."
     decoding="async"

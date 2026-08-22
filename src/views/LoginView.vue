@@ -32,7 +32,7 @@ async function handleEmailLogin() {
     <section class="login-hero">
       <div class="hero-inner">
         <div class="hero-brand">
-          <BrandLogo :width="286" completo sobre-oscuro />
+          <BrandLogo :width="300" fondo="oscuro" />
           <span class="hero-brand-app">HostelinApp</span>
         </div>
 

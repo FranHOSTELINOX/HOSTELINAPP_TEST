@@ -85,12 +85,12 @@ En `src/components/`:
 - `AppIcon.vue` — los iconos, dibujados a mano en `icons.ts`. No hay librería
   de iconos: si necesitas uno nuevo, añade su `path` ahí con la misma rejilla
   de 24×24.
-- `BrandLogo.vue` — el logo de Hostelinox. `<BrandLogo :width="186" />` da
-  solo el óvalo, que vale sobre cualquier fondo porque es plateado y no
-  tiene negro. `completo` añade debajo la razón social, y como esa línea es
-  negra hay una variante aclarada que se pide con `sobre-oscuro`. Cuál usar
-  se dice con la prop, no detectando el tema: la chapa del acceso es oscura
-  siempre, tenga el usuario el modo que tenga.
+- `BrandLogo.vue` — el logo de Hostelinox, **entero**: el óvalo completo y
+  la razón social debajo. Nunca lo recortes; se pide así de una pieza.
+  Como esa línea es negra y sobre fondo oscuro no se vería, hay una versión
+  con ella aclarada. Cuál toca se decide con `modoOscuro` del store de tema,
+  y se puede forzar con `fondo="oscuro"` para sitios que son oscuros siempre
+  (la chapa del acceso), tenga el usuario el modo que tenga.
 - `EmptyState.vue`, `AlertMessage.vue`, `LoadingList.vue` — para no repetir
   el "no hay nada", el error y el "cargando…" en cada vista.
 
