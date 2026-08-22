@@ -22,7 +22,111 @@
     <title>HostelinApp · Hostelinox</title>
   </head>
   <body>
-    <div id="app"></div>
+    <!--
+      Este contenido es la red de seguridad: si el JavaScript de la app llega
+      a arrancar, Vue lo sustituye entero al montar sobre #app y no se ve
+      nunca. Si NO arranca (el navegador guardó una versión vieja, se cayó la
+      descarga, el móvil es demasiado antiguo para ese código), antes se veía
+      una página en blanco sin una sola pista. Ahora se ve qué ha pasado y un
+      botón para recargar saltándose la caché.
+
+      Va escrito a la vieja usanza y sin depender de la hoja de estilos a
+      propósito: tiene que funcionar justo cuando lo demás ha fallado.
+    -->
+    <div id="app">
+      <div id="arranque">
+        <p id="arranque-cargando">Cargando HostelinApp…</p>
+        <div id="arranque-fallo" style="display: none">
+          <h1>No se ha podido cargar HostelinApp</h1>
+          <p>
+            Casi siempre es que el navegador se ha quedado con una versión
+            antigua guardada. Pulsa el botón y se descarga de nuevo.
+          </p>
+          <p><button type="button" id="arranque-recargar">Recargar del todo</button></p>
+          <p id="arranque-detalle"></p>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      #arranque {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        max-width: 30rem;
+        margin: 4rem auto;
+        padding: 0 1.25rem;
+        color: #1b2430;
+        line-height: 1.5;
+      }
+      #arranque h1 { font-size: 1.25rem; margin: 0 0 0.75rem; }
+      #arranque-cargando { color: #64748b; }
+      #arranque-recargar {
+        font: inherit;
+        padding: 0.7rem 1.1rem;
+        border: 0;
+        border-radius: 10px;
+        background: #2a0e72;
+        color: #fff;
+        cursor: pointer;
+      }
+      #arranque-detalle {
+        font-size: 0.8125rem;
+        color: #64748b;
+        word-break: break-word;
+      }
+      @media (prefers-color-scheme: dark) {
+        #arranque { color: #e2e8f0; }
+        #arranque-recargar { background: #7040e7; }
+      }
+    </style>
+
+    <script>
+      (function () {
+        var visto = false
+        function fallo(detalle) {
+          if (visto) return
+          visto = true
+          var caja = document.getElementById('arranque-fallo')
+          var cargando = document.getElementById('arranque-cargando')
+          if (!caja) return
+          if (cargando) cargando.style.display = 'none'
+          caja.style.display = 'block'
+          var d = document.getElementById('arranque-detalle')
+          if (d && detalle) d.textContent = detalle
+        }
+
+        // Los fallos al descargar un <script> o un <link> no burbujean:
+        // hay que escucharlos en fase de captura.
+        window.addEventListener(
+          'error',
+          function (e) {
+            var t = e.target
+            if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+              fallo('No se pudo descargar: ' + (t.src || t.href))
+            } else if (e.message) {
+              fallo(e.message)
+            }
+          },
+          true,
+        )
+
+        // Y si no falla nada pero la app tampoco aparece, a los 10 segundos
+        // se deja de esperar: en blanco no se queda.
+        setTimeout(function () {
+          if (document.getElementById('arranque')) {
+            fallo('La aplicación no llegó a arrancar.')
+          }
+        }, 10000)
+
+        document.addEventListener('click', function (e) {
+          if (e.target && e.target.id === 'arranque-recargar') {
+            // El ?r= es lo que obliga al navegador a pedir la página de
+            // nuevo en vez de servir la que tenía guardada.
+            var base = location.href.split('#')[0].split('?')[0]
+            location.replace(base + '?r=' + Date.now() + location.hash)
+          }
+        })
+      })()
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
