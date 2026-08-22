@@ -117,6 +117,13 @@ const previstoHoy = computed(() => minutosPrevistos(new Date()) * 60_000)
 
 const cerradas = computed(() => entries.value.filter((e) => e.ended_at))
 
+/**
+ * Registro que ha pedido borrarse y está esperando confirmación. Se confirma
+ * en la propia fila, como en el panel de administración: nada de ventanas
+ * emergentes, que en el móvil del taller se cierran de un roce.
+ */
+const borrando = ref<string | null>(null)
+
 /** Registros que se quedaron abiertos con el cronómetro de antes. */
 const abiertas = computed(() => entries.value.filter((e) => !e.ended_at))
 
@@ -241,6 +248,7 @@ async function guardar() {
 // está por si acaso.
 async function borrarRegistro(id: string) {
   if (!esAdmin.value) return
+  borrando.value = null
   error.value = ''
   const { error: e } = await supabase.from('time_entries').delete().eq('id', id)
   if (e) {
@@ -430,12 +438,21 @@ onMounted(async () => {
               <span class="registro-trabajo">
                 {{ etiquetaProducto(entry.product_id) }}
               </span>
+              <span v-if="esAdmin && borrando === entry.id" class="confirmar">
+                <span class="small">¿Seguro?</span>
+                <button type="button" class="btn btn-danger btn-sm" @click="borrarRegistro(entry.id)">
+                  Sí, borrar
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="borrando = null">
+                  No
+                </button>
+              </span>
               <button
-                v-if="esAdmin"
+                v-else-if="esAdmin"
                 type="button"
                 class="btn btn-ghost btn-sm borrar"
                 :aria-label="`Borrar el registro sin cerrar del ${formatDate(entry.started_at)}`"
-                @click="borrarRegistro(entry.id)"
+                @click="borrando = entry.id"
               >
                 <AppIcon name="borrar" :size="15" />
               </button>
@@ -496,12 +513,21 @@ onMounted(async () => {
               <span class="pill pill-plain registro-dur mono">
                 {{ formatDuration(entryDuration(entry.started_at, entry.ended_at as string)) }}
               </span>
+              <span v-if="esAdmin && borrando === entry.id" class="confirmar">
+                <span class="small">¿Seguro?</span>
+                <button type="button" class="btn btn-danger btn-sm" @click="borrarRegistro(entry.id)">
+                  Sí, borrar
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="borrando = null">
+                  No
+                </button>
+              </span>
               <button
-                v-if="esAdmin"
+                v-else-if="esAdmin"
                 type="button"
                 class="btn btn-ghost btn-sm borrar"
                 :aria-label="`Borrar el registro de las ${formatTime(entry.started_at)}`"
-                @click="borrarRegistro(entry.id)"
+                @click="borrando = entry.id"
               >
                 <AppIcon name="borrar" :size="15" />
               </button>
@@ -678,6 +704,20 @@ onMounted(async () => {
   border-radius: var(--r-md);
   background: var(--surface-inset);
   line-height: 1.45;
+}
+
+/* La confirmación ocupa el sitio del botón de la papelera. Los botones sí
+   llevan texto aquí: "Sí, borrar" y "No" no se confunden con un icono. */
+.confirmar {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: none;
+  flex-wrap: wrap;
+}
+
+.confirmar .btn-sm {
+  min-height: 34px;
 }
 
 .borrar {
