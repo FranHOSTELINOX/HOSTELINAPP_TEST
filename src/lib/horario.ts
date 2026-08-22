@@ -1,6 +1,6 @@
 // Horario de trabajo del taller.
 //
-//   Lunes a viernes: 07:00–15:00 y 16:00–18:00   (10 h)
+//   Lunes a viernes: 06:30–15:00 y 16:00–18:00   (10 h 30 min)
 //   Sábados:         06:30–11:30                 (5 h)
 //   Domingos:        no se trabaja
 //
@@ -21,11 +21,11 @@ const h = (horas: number, minutos = 0) => horas * 60 + minutos
 /** Tramos por día de la semana, con la numeración de JavaScript (0 = domingo). */
 const TRAMOS: Record<number, Tramo[]> = {
   0: [], // domingo
-  1: [{ desde: h(7), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
-  2: [{ desde: h(7), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
-  3: [{ desde: h(7), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
-  4: [{ desde: h(7), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
-  5: [{ desde: h(7), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
+  1: [{ desde: h(6, 30), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
+  2: [{ desde: h(6, 30), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
+  3: [{ desde: h(6, 30), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
+  4: [{ desde: h(6, 30), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
+  5: [{ desde: h(6, 30), hasta: h(15) }, { desde: h(16), hasta: h(18) }],
   6: [{ desde: h(6, 30), hasta: h(11, 30) }], // sábado
 }
 
@@ -34,14 +34,14 @@ export function tramosDelDia(fecha: Date): Tramo[] {
   return TRAMOS[fecha.getDay()] ?? []
 }
 
-/** "07:00" a partir de minutos desde medianoche. */
+/** "06:30" a partir de minutos desde medianoche. */
 export function minutosAHora(minutos: number): string {
   const hh = Math.floor(minutos / 60)
   const mm = minutos % 60
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }
 
-/** "07:00–15:00 y 16:00–18:00", o "no se trabaja". */
+/** "06:30–15:00 y 16:00–18:00", o "no se trabaja". */
 export function describeHorario(fecha: Date): string {
   const tramos = tramosDelDia(fecha)
   if (tramos.length === 0) return 'no se trabaja'

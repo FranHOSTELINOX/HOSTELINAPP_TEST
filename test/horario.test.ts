@@ -43,7 +43,7 @@ describe('minutosAHora', () => {
 
 describe('describeHorario', () => {
   it('describe el horario de un día entre semana', () => {
-    expect(describeHorario(lunes(9))).toBe('07:00–15:00 y 16:00–18:00')
+    expect(describeHorario(lunes(9))).toBe('06:30–15:00 y 16:00–18:00')
   })
 
   it('describe el del sábado', () => {
@@ -73,7 +73,7 @@ describe('dentroDeHorario', () => {
   })
 
   it('rechaza antes de entrar y después de salir', () => {
-    expect(dentroDeHorario(lunes(6, 59))).toBe(false)
+    expect(dentroDeHorario(lunes(6, 29))).toBe(false)
     expect(dentroDeHorario(lunes(18))).toBe(false)
     expect(dentroDeHorario(lunes(22))).toBe(false)
   })
@@ -92,8 +92,8 @@ describe('dentroDeHorario', () => {
 })
 
 describe('minutosPrevistos', () => {
-  it('entre semana son diez horas', () => {
-    expect(minutosPrevistos(lunes(9))).toBe(600)
+  it('entre semana son diez horas y media', () => {
+    expect(minutosPrevistos(lunes(9))).toBe(630)
   })
 
   it('el sábado, cinco', () => {
@@ -106,19 +106,19 @@ describe('minutosPrevistos', () => {
 })
 
 describe('minutosPrevistosEnRango', () => {
-  it('un solo día entre semana son diez horas', () => {
-    expect(minutosPrevistosEnRango(lunes(9), lunes(9))).toBe(600)
+  it('un solo día entre semana son diez horas y media', () => {
+    expect(minutosPrevistosEnRango(lunes(9), lunes(9))).toBe(630)
   })
 
-  it('una semana de lunes a sábado: cinco días de 10 h más el sábado de 5', () => {
+  it('una semana de lunes a sábado: cinco días de 10 h 30 más el sábado de 5', () => {
     // Del lunes 17 al sábado 22 de agosto de 2026.
-    expect(minutosPrevistosEnRango(lunes(9), sabado(9))).toBe(5 * 600 + 300)
+    expect(minutosPrevistosEnRango(lunes(9), sabado(9))).toBe(5 * 630 + 300)
   })
 
   it('el domingo no suma', () => {
     expect(minutosPrevistosEnRango(domingo(9), domingo(9))).toBe(0)
     // Del lunes al domingo sale lo mismo que del lunes al sábado.
-    expect(minutosPrevistosEnRango(lunes(9), domingo(9))).toBe(5 * 600 + 300)
+    expect(minutosPrevistosEnRango(lunes(9), domingo(9))).toBe(5 * 630 + 300)
   })
 
   it('da cero si el rango va del revés', () => {
@@ -126,7 +126,7 @@ describe('minutosPrevistosEnRango', () => {
   })
 
   it('no le afecta la hora del día', () => {
-    expect(minutosPrevistosEnRango(lunes(23), lunes(1))).toBe(600)
+    expect(minutosPrevistosEnRango(lunes(23), lunes(1))).toBe(630)
   })
 })
 
@@ -141,8 +141,8 @@ describe('msDentroDeHorario', () => {
   })
 
   it('recorta lo que se sale por delante y por detrás', () => {
-    // De 06:00 a 19:00: solo cuentan 07:00–15:00 y 16:00–18:00 = 10 h.
-    expect(msDentroDeHorario(lunes(6), lunes(19))).toBe(10 * HORA)
+    // De 06:00 a 19:00: solo cuentan 06:30–15:00 y 16:00–18:00 = 10 h 30.
+    expect(msDentroDeHorario(lunes(6), lunes(19))).toBe(10.5 * HORA)
   })
 
   it('da cero si el rato queda entero fuera', () => {
@@ -171,7 +171,7 @@ describe('franjasDelDia', () => {
 
   it('trocea en intervalos de 15 minutos', () => {
     const [manana] = franjasDelDia(lunes(9))
-    expect(manana.horas.slice(0, 5)).toEqual(['07:00', '07:15', '07:30', '07:45', '08:00'])
+    expect(manana.horas.slice(0, 5)).toEqual(['06:30', '06:45', '07:00', '07:15', '07:30'])
   })
 
   it('incluye la hora de cierre de cada tramo', () => {
@@ -195,16 +195,16 @@ describe('franjasDelDia', () => {
 
   it('admite otro paso', () => {
     const [manana] = franjasDelDia(lunes(9), 30)
-    expect(manana.horas.slice(0, 3)).toEqual(['07:00', '07:30', '08:00'])
+    expect(manana.horas.slice(0, 3)).toEqual(['06:30', '07:00', '07:30'])
   })
 })
 
 describe('horasDelDia', () => {
   it('junta los dos tramos en una sola lista ordenada', () => {
     const horas = horasDelDia(lunes(9))
-    // 07:00–15:00 son 33 huecos, 16:00–18:00 son 9. En total 42.
-    expect(horas).toHaveLength(42)
-    expect(horas[0]).toBe('07:00')
+    // 06:30–15:00 son 35 huecos, 16:00–18:00 son 9. En total 44.
+    expect(horas).toHaveLength(44)
+    expect(horas[0]).toBe('06:30')
     expect(horas.at(-1)).toBe('18:00')
     // No hay nada en el rato de la comida.
     expect(horas).not.toContain('15:15')
