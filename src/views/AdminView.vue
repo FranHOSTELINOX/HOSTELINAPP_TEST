@@ -706,7 +706,7 @@ onMounted(async () => {
             <div class="form-actions">
               <button type="submit" class="btn btn-primary" :disabled="guardando">
                 <AppIcon v-if="!editando" name="mas" :size="16" />
-                {{ guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear proyecto' }}
+                {{ guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear cliente' }}
               </button>
               <button v-if="editando" type="button" class="btn btn-ghost" @click="limpiar">
                 Cancelar
