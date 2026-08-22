@@ -27,8 +27,8 @@ const enOscuro = computed(
   <img
     class="brand-logo"
     :src="enOscuro ? oscuro : claro"
-    width="760"
-    height="270"
+    width="800"
+    height="294"
     :style="{ width: `${props.width}px` }"
     alt="Hostelinox — Hostelería e Inoxidables, S.L."
     decoding="async"
