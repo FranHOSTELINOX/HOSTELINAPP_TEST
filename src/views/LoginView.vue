@@ -38,10 +38,6 @@ async function handleEmailLogin() {
 
         <div class="hero-copy">
           <p class="hero-eyebrow">Acero inoxidable desde 1982</p>
-          <h1 class="hero-title">
-            El taller,<br />
-            <em>ordenado</em>.
-          </h1>
           <p class="hero-text">
             Las horas, el calendario y los avisos del equipo de Hostelinox en
             un único sitio. Entra con tu cuenta para empezar.
@@ -61,7 +57,7 @@ async function handleEmailLogin() {
       <div class="login-form">
         <div class="form-head">
           <p class="eyebrow">Acceso al equipo</p>
-          <h2>Entra en tu cuenta</h2>
+          <h1>Entra en tu cuenta</h1>
           <p class="muted small">
             Usa el correo y la contraseña que te haya dado el administrador.
           </p>
@@ -240,24 +236,6 @@ async function handleEmailLogin() {
   color: var(--rojo-300);
 }
 
-.hero-title {
-  font-family: var(--font-display);
-  font-size: clamp(2.25rem, 1.4rem + 3.4vw, 3.5rem);
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1.02;
-  color: #fff;
-  margin: 0;
-}
-
-.hero-title em {
-  font-style: normal;
-  background: linear-gradient(100deg, var(--rojo-300), var(--rojo-500));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
 .hero-text {
   font-size: 1rem;
   line-height: 1.6;
@@ -311,7 +289,7 @@ async function handleEmailLogin() {
   gap: 0.375rem;
 }
 
-.form-head h2 {
+.form-head h1 {
   font-size: 1.5rem;
 }
 
