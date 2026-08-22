@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { authReady, role, session } from '../stores/auth'
+import { authReady, session } from '../stores/auth'
+import { esAdmin } from '../stores/vista'
 
 const router = createRouter({
   // Modo hash (URLs tipo /#/tiempos) porque GitHub Pages no sabe redirigir
@@ -18,13 +19,13 @@ const router = createRouter({
       path: '/calendario',
       name: 'calendario',
       component: () => import('../views/CalendarView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/avisos',
       name: 'avisos',
       component: () => import('../views/NoticesView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/horas',
@@ -66,7 +67,10 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !session.value) {
     return { name: 'login' }
   }
-  if (to.meta.requiresAdmin && role.value !== 'admin') {
+  // esAdmin, no role: cuando el administrador está mirando la app "como
+  // usuario", las pantallas de administración también se le cierran, que es
+  // justo lo que quiere comprobar.
+  if (to.meta.requiresAdmin && !esAdmin.value) {
     return { name: 'tiempos' }
   }
   if (to.name === 'login' && session.value) {
