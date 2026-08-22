@@ -78,7 +78,8 @@ src/
   lib/format.ts           utilidades pequeñas (con test)
   lib/horario.ts          el horario del taller y sus cuentas (con test)
   stores/auth.ts          estado de sesión/rol/perfil, sin Pinia (app pequeña)
-  stores/theme.ts         modo claro/oscuro, recordado en el navegador
+  stores/vista.ts         "ver como usuario": el esAdmin que manda en la interfaz
+  stores/theme.ts         claro/oscuro, que lo decide el sistema del usuario
   router/index.ts         rutas + guardas por sesión/rol
   views/                  una vista por pantalla (Login, TimeEntries,
                            Calendar, Notices, TeamHours, Admin,
@@ -110,6 +111,11 @@ test/                     tests de Vitest
 - **Vistas nuevas**: añádelas en `src/views/`, regístralas en
   `src/router/index.ts` con `meta.requiresAuth` (y `meta.requiresAdmin` si
   solo las usa el administrador).
+- **Para saber si alguien es administrador** en una vista o en el router, usa
+  `esAdmin` de `src/stores/vista.ts`, no `role` de `src/stores/auth.ts`. El
+  administrador puede estar mirando la app "como usuario" y `esAdmin` es el
+  que lo tiene en cuenta. `role` es el rol de verdad y solo hace falta para
+  cosas que no son de interfaz.
 - **Textos de la interfaz**: en español, tono sencillo (el dueño del
   proyecto es principiante).
 - **Estilos**: todo sale del sistema de diseño de `src/style.css`. Antes de

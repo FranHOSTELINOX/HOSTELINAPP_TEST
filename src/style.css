@@ -133,10 +133,11 @@
 }
 
 /* --------------------------------------------------------------------------
-   3. Tokens semánticos — modo oscuro (acero anochecido)
+   3. Tokens semánticos — modo oscuro (acero anochecido). Lo decide el
+      sistema del usuario; la app no lo fuerza.
    -------------------------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root {
     --bg: var(--steel-950);
     --surface: #131a23;
     --surface-2: #172029;
@@ -178,56 +179,6 @@
     --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.45), 0 18px 44px rgba(0, 0, 0, 0.55);
     --ring: 0 0 0 3px rgba(112, 64, 231, 0.4);
   }
-}
-
-/* Mismos valores cuando el usuario fuerza el modo oscuro desde la app */
-:root[data-theme='dark'] {
-  --bg: var(--steel-950);
-  --surface: #131a23;
-  --surface-2: #172029;
-  --surface-inset: #0f151d;
-  --surface-raised: #1a232e;
-
-  --border: #26313f;
-  --border-soft: #1c2531;
-  --border-strong: #354250;
-
-  --text: var(--steel-100);
-  --text-muted: var(--steel-400);
-  --text-dim: var(--steel-500);
-  --text-invert: var(--steel-950);
-
-  --accent: var(--azul-400);
-  --accent-hover: var(--azul-300);
-  --accent-fg: #ffffff;
-  --accent-soft: rgba(112, 64, 231, 0.18);
-  --accent-soft-border: rgba(112, 64, 231, 0.38);
-  --accent-text: var(--azul-300);
-
-  --ok-bg: rgba(22, 163, 106, 0.16);
-  --ok-fg: #4ade9b;
-  --ok-line: rgba(22, 163, 106, 0.36);
-  --warn-bg: rgba(217, 158, 11, 0.16);
-  --warn-fg: #f0c14b;
-  --warn-line: rgba(217, 158, 11, 0.36);
-  --danger-bg: rgba(253, 32, 21, 0.16);
-  --danger-fg: var(--rojo-300);
-  --danger-line: rgba(253, 32, 21, 0.38);
-
-  --sheen: rgba(255, 255, 255, 0.07);
-  --grain: rgba(255, 255, 255, 0.016);
-
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.45), 0 18px 44px rgba(0, 0, 0, 0.55);
-  --ring: 0 0 0 3px rgba(112, 64, 231, 0.4);
-
-  color-scheme: dark;
-}
-
-:root[data-theme='light'] {
-  color-scheme: light;
 }
 
 /* --------------------------------------------------------------------------

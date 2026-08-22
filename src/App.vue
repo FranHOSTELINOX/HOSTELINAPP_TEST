@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { profile, role, session, signOut } from './stores/auth'
-import { theme, toggleTheme } from './stores/theme'
+import { profile, session, signOut } from './stores/auth'
+import { alternarVista, esAdmin, puedeCambiarVista, verComoUsuario } from './stores/vista'
 import { initials } from './lib/format'
 import AppIcon from './components/AppIcon.vue'
 import BrandLogo from './components/BrandLogo.vue'
@@ -26,14 +26,24 @@ type NavItem = { to: string; label: string; short: string; icon: IconName; admin
 
 const navItems: NavItem[] = [
   { to: '/tiempos', label: 'Tiempos', short: 'Tiempos', icon: 'reloj' },
-  { to: '/calendario', label: 'Calendario', short: 'Agenda', icon: 'calendario' },
-  { to: '/avisos', label: 'Avisos', short: 'Avisos', icon: 'avisos' },
+  { to: '/calendario', label: 'Calendario', short: 'Agenda', icon: 'calendario', admin: true },
+  { to: '/avisos', label: 'Avisos', short: 'Avisos', icon: 'avisos', admin: true },
   { to: '/horas', label: 'Horas del equipo', short: 'Horas', icon: 'barras', admin: true },
   { to: '/admin', label: 'Administración', short: 'Admin', icon: 'admin', admin: true },
 ]
 
-const visibleNav = computed(() =>
-  navItems.filter((item) => !item.admin || role.value === 'admin'),
+const visibleNav = computed(() => navItems.filter((item) => !item.admin || esAdmin.value))
+
+// Al pasar a la vista de usuario, las pantallas de administración dejan de
+// estar permitidas: si estabas en una, hay que salir de ella.
+watch(verComoUsuario, () => {
+  if (route.meta.requiresAdmin && !esAdmin.value) {
+    router.push({ name: 'tiempos' })
+  }
+})
+
+const vistaLabel = computed(() =>
+  verComoUsuario.value ? 'Volver a mi vista de administrador' : 'Ver la app como un usuario',
 )
 
 const displayName = computed(
@@ -41,11 +51,7 @@ const displayName = computed(
 )
 const displayInitials = computed(() => initials(displayName.value))
 const subtitle = computed(() =>
-  profile.value?.puesto || (role.value === 'admin' ? 'Administración' : 'Equipo'),
-)
-
-const themeLabel = computed(() =>
-  theme.value === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
+  profile.value?.puesto || (esAdmin.value ? 'Administración' : 'Equipo'),
 )
 </script>
 
@@ -82,16 +88,20 @@ const themeLabel = computed(() =>
           </span>
         </RouterLink>
 
+        <button
+          v-if="puedeCambiarVista"
+          type="button"
+          class="btn btn-sm btn-block ver-como"
+          :class="verComoUsuario ? 'btn-primary' : 'btn-ghost'"
+          :title="vistaLabel"
+          :aria-pressed="verComoUsuario"
+          @click="alternarVista()"
+        >
+          <AppIcon :name="verComoUsuario ? 'escudo' : 'ojo'" :size="16" />
+          {{ verComoUsuario ? 'Volver a mi vista' : 'Ver como usuario' }}
+        </button>
+
         <div class="side-actions">
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            :title="themeLabel"
-            :aria-label="themeLabel"
-            @click="toggleTheme()"
-          >
-            <AppIcon :name="theme === 'dark' ? 'sol' : 'luna'" :size="16" />
-          </button>
           <RouterLink to="/cambiar-contrasena" class="btn btn-ghost btn-sm">
             <AppIcon name="llave" :size="16" />
             Contraseña
@@ -113,13 +123,16 @@ const themeLabel = computed(() =>
         </RouterLink>
         <span class="spacer"></span>
         <button
+          v-if="puedeCambiarVista"
           type="button"
-          class="btn btn-ghost btn-icon"
-          :title="themeLabel"
-          :aria-label="themeLabel"
-          @click="toggleTheme()"
+          class="btn btn-icon"
+          :class="verComoUsuario ? 'btn-primary' : 'btn-ghost'"
+          :title="vistaLabel"
+          :aria-label="vistaLabel"
+          :aria-pressed="verComoUsuario"
+          @click="alternarVista()"
         >
-          <AppIcon :name="theme === 'dark' ? 'sol' : 'luna'" :size="18" />
+          <AppIcon :name="verComoUsuario ? 'escudo' : 'ojo'" :size="18" />
         </button>
         <RouterLink
           to="/cambiar-contrasena"
@@ -140,6 +153,19 @@ const themeLabel = computed(() =>
       </header>
 
       <main class="content">
+        <!-- Mientras dura la vista de prueba conviene decirlo bien claro: si
+             no, faltan menús y parece que la app se ha roto. -->
+        <div v-if="verComoUsuario" class="vista-aviso">
+          <AppIcon name="ojo" :size="16" />
+          <p>
+            Estás viendo la app como la ve alguien del equipo. Tus permisos no
+            han cambiado.
+          </p>
+          <button type="button" class="btn btn-sm btn-ghost" @click="alternarVista()">
+            Volver a mi vista
+          </button>
+        </div>
+
         <!-- El <div> envuelve la vista para que <Transition> tenga siempre un
              único nodo raíz: las vistas devuelven varios elementos sueltos. -->
         <RouterView v-slot="{ Component }">
@@ -338,6 +364,32 @@ const themeLabel = computed(() =>
   display: flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.ver-como {
+  margin-bottom: 0.5rem;
+}
+
+/* ---------------- Aviso de "ver como usuario" ---------------- */
+.vista-aviso {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--accent-soft-border);
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.vista-aviso p {
+  flex: 1 1 14rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .side-actions .btn {

@@ -117,14 +117,33 @@ las vistas. Respétalo y la pantalla nueva encajará sin pensar.
 
 ## Modo claro y oscuro
 
-Los dos están cuidados. El usuario lo cambia con el botón de la luna/sol de la
-barra lateral (o de arriba, en el móvil) y se recuerda en el navegador
-(`src/stores/theme.ts`). Por defecto va en "auto": lo que tenga puesto el
-móvil o el ordenador.
+Los dos están cuidados, y **lo decide el sistema del usuario**: si tiene el
+móvil en oscuro, la app sale en oscuro. No hay botón para forzarlo (lo hubo y
+se quitó; su sitio en la barra lo ocupa ahora el de "Ver como usuario").
 
-Al añadir estilos, **no** definas un color solo dentro de un `@media
-(prefers-color-scheme: dark)`: define el token en claro y deja que el sistema
-haga el resto.
+Todo el cambio de color lo hace el CSS con `@media (prefers-color-scheme:
+dark)`. `src/stores/theme.ts` solo queda para lo único que el CSS no puede
+decidir: cuál de las dos versiones del logo cargar.
+
+Al añadir estilos, **no** definas un color solo dentro del `@media`: define el
+token en claro y deja que el bloque oscuro lo reajuste.
+
+## Ver la app como un usuario
+
+El administrador tiene un botón en la barra lateral (y arriba, en el móvil)
+que le enseña la app como la ve alguien del equipo: se le caen los menús de
+Calendario, Avisos, Horas del equipo y Administración, y desaparecen los
+botones de borrar. Sale un aviso en azul mientras dura, porque si no parece
+que la app se ha roto.
+
+Lo lleva `src/stores/vista.ts`. Para saber si hay que pintar algo de
+administrador, **usa `esAdmin` de ese store, no `role` del de sesión**: `role`
+es el rol de verdad y no cambia, `esAdmin` es el que manda en la interfaz.
+
+Y ten claro qué es: **una vista, no un permiso**. Los permisos de verdad los
+da RLS en la base de datos y siguen siendo los del administrador. No sirve
+para comprobar si un usuario podría hacer algo prohibido; sirve para ver su
+menú y sus pantallas.
 
 ## Móvil
 

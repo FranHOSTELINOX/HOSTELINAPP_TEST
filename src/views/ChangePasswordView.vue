@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { changePassword, profile, role, session } from '../stores/auth'
+import { changePassword, profile, session } from '../stores/auth'
+import { esAdmin } from '../stores/vista'
 import { initials } from '../lib/format'
 import AppIcon from '../components/AppIcon.vue'
 import AlertMessage from '../components/AlertMessage.vue'
@@ -77,7 +78,7 @@ async function handleSubmit() {
       <div class="ficha-datos">
         <div class="dato">
           <AppIcon name="escudo" :size="15" />
-          <span>{{ role === 'admin' ? 'Administrador' : 'Miembro del equipo' }}</span>
+          <span>{{ esAdmin ? 'Administrador' : 'Miembro del equipo' }}</span>
         </div>
         <div v-if="profile?.puesto" class="dato">
           <AppIcon name="puesto" :size="15" />
