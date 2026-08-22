@@ -841,6 +841,7 @@ onMounted(async () => {
           >
             <span class="fila-texto">
               <strong>{{ p.name }}</strong>
+              <span class="small dim">Añadido el {{ formatDate(p.created_at) }}</span>
             </span>
             <span v-if="!p.active" class="pill pill-plain">Inactivo</span>
 
