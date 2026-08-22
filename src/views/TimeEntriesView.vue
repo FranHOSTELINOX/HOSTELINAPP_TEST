@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { supabase } from '../lib/supabase'
-import { role, session } from '../stores/auth'
+import { session } from '../stores/auth'
+import { esAdmin } from '../stores/vista'
 import type { Database } from '../lib/database.types'
 import {
   daysFromToday,
@@ -51,7 +52,7 @@ const parte = ref({
 })
 
 /** Solo el administrador puede imputar horas sin decir a qué producto. */
-const requiereProducto = computed(() => role.value !== 'admin')
+const requiereProducto = computed(() => !esAdmin.value)
 
 const proyectosActivos = computed(() => projects.value.filter((p) => p.active))
 
@@ -232,7 +233,11 @@ async function guardar() {
   await loadEntries()
 }
 
+// Borrar un registro es cosa del administrador (política RLS
+// time_entries_delete_admin). El botón solo se le enseña a él; esta guarda
+// está por si acaso.
 async function borrarRegistro(id: string) {
+  if (!esAdmin.value) return
   error.value = ''
   const { error: e } = await supabase.from('time_entries').delete().eq('id', id)
   if (e) {
@@ -403,9 +408,16 @@ onMounted(async () => {
         </header>
         <div class="panel-body">
           <p class="small muted intro">
-            Se quedaron abiertos con el botón de empezar y parar, que ya no
-            existe. No cuentan para los totales. Bórralos y vuelve a apuntar
-            esas horas con el parte de arriba.
+            <template v-if="esAdmin">
+              Se quedaron abiertos con el botón de empezar y parar, que ya no
+              existe. No cuentan para los totales. Bórralos y vuelve a apuntar
+              esas horas con el parte de arriba.
+            </template>
+            <template v-else>
+              Se quedaron abiertos con el botón de empezar y parar, que ya no
+              existe. No cuentan para los totales y no hace falta que hagas
+              nada: pídele a un administrador que los borre.
+            </template>
           </p>
           <div class="stack-sm">
             <article v-for="entry in abiertas" :key="entry.id" class="panel registro">
@@ -416,6 +428,7 @@ onMounted(async () => {
                 {{ etiquetaProducto(entry.product_id) }}
               </span>
               <button
+                v-if="esAdmin"
                 type="button"
                 class="btn btn-ghost btn-sm borrar"
                 :aria-label="`Borrar el registro sin cerrar del ${formatDate(entry.started_at)}`"
@@ -456,6 +469,11 @@ onMounted(async () => {
       />
 
       <div v-else class="stack-lg historial">
+        <p v-if="!esAdmin" class="small muted historial-nota">
+          Lo que apuntes aquí queda registrado. Si te equivocas en una hora,
+          díselo a un administrador: son los únicos que pueden borrar un
+          registro.
+        </p>
         <section v-for="grupo in porDia" :key="grupo.etiqueta" class="dia">
           <header class="dia-cab">
             <h3 class="dia-titulo">{{ grupo.etiqueta }}</h3>
@@ -476,6 +494,7 @@ onMounted(async () => {
                 {{ formatDuration(entryDuration(entry.started_at, entry.ended_at as string)) }}
               </span>
               <button
+                v-if="esAdmin"
                 type="button"
                 class="btn btn-ghost btn-sm borrar"
                 :aria-label="`Borrar el registro de las ${formatTime(entry.started_at)}`"
@@ -647,6 +666,15 @@ onMounted(async () => {
   color: var(--text-muted);
   margin-left: auto;
   flex: none;
+}
+
+.historial-nota {
+  margin: 0 0 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--surface-inset);
+  line-height: 1.45;
 }
 
 .borrar {

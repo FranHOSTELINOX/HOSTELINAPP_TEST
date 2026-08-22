@@ -96,10 +96,21 @@ Las horas que imputa cada trabajador.
 | started_at | inicio                                       |
 | ended_at   | fin (null = todavía en marcha)               |
 
-**Quién ve/edita qué**: cada usuario ve y gestiona solo sus propias entradas;
-el admin ve y gestiona todas. De eso vive la pantalla "Horas del equipo"
-(`/horas`, solo admin): no necesita permisos especiales ni vistas nuevas,
-porque la política de select ya se los da.
+**Quién ve qué**: cada usuario ve solo sus propias entradas; el admin las ve
+todas. De eso vive la pantalla "Horas del equipo" (`/horas`, solo admin): no
+necesita permisos especiales ni vistas nuevas, porque la política de select ya
+se los da.
+
+**Lo apuntado no se borra: solo el admin puede** (migración
+`0005_solo_admin_toca_horas_imputadas.sql`). Cualquiera con sesión apunta sus
+horas (insert), pero borrar y actualizar son solo de administrador. El update
+se cerró junto con el delete a propósito: si un usuario pudiera actualizar su
+propio registro, le bastaría con mover la hora de fin encima de la de inicio
+para dejarlo en cero, que es borrarlo por otra puerta. La interfaz nunca ha
+dejado editar un registro, así que no se pierde nada.
+
+Si alguien se equivoca, se lo dice al administrador, y él lo borra desde su
+sesión. La pantalla de Tiempos se lo explica al usuario para que no lo busque.
 
 **El producto es obligatorio para el equipo, no para el admin**: la interfaz
 no deja fichar a un usuario normal sin elegir proyecto y producto. A nivel de
@@ -133,8 +144,15 @@ Eventos de calendario, los crea el admin.
 |-------------|-------------------------------------------------------|
 | assigned_to | usuario concreto, o `null` = visible para todos       |
 
-**Quién ve/edita qué**: todos ven los eventos con `assigned_to = null` más los
-suyos propios; el admin ve y gestiona todos. Solo el admin crea/edita/borra.
+**Quién ve/edita qué**: a nivel de base de datos, todos ven los eventos con
+`assigned_to = null` más los suyos propios; el admin ve y gestiona todos. Solo
+el admin crea/edita/borra.
+
+**Pero en la app el calendario es solo para el admin**: la pestaña se quitó
+del menú del equipo y la ruta `/calendario` pide `requiresAdmin`. Las
+políticas RLS se dejaron como estaban, así que si algún día se decide que el
+equipo vuelva a consultarlo, basta con quitar ese `requiresAdmin` y volver a
+poner la pestaña; no hace falta migración.
 
 **Cuidado con la hora**: `start_at` y `end_at` son `timestamptz`. Un
 `<input type="datetime-local">` da la hora local sin zona (`2026-09-10T08:00`);
@@ -145,9 +163,9 @@ al guardar y volver a hora local al rellenar el formulario (ver `aInputLocal` y
 
 ## `notices`
 
-Avisos/textos que el admin publica para que los usuarios "consulten".
-Misma forma y mismas reglas que `calendar_events`, pero con `title` + `body`
-en vez de fechas.
+Avisos/textos que publica el admin. Misma forma y mismas reglas que
+`calendar_events`, incluido lo de la pestaña: la ruta `/avisos` también es
+solo de administrador desde que se quitó del menú del equipo.
 
 ## Función auxiliar: `is_admin()`
 
