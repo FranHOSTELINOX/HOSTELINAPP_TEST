@@ -132,9 +132,10 @@ token en claro y deja que el bloque oscuro lo reajuste.
 
 El administrador tiene un botón en la barra lateral (y arriba, en el móvil)
 que le enseña la app como la ve alguien del equipo: se le caen los menús de
-Calendario, Avisos, Horas del equipo y Administración, y desaparecen los
-botones de borrar. Sale un aviso en azul mientras dura, porque si no parece
-que la app se ha roto.
+Calendario y Administración, desaparecen los botones de borrar, y las
+pantallas que cambian de alcance cambian con él (en `/horas` pasa de ver las
+del equipo entero a ver solo las suyas). Sale un aviso en azul mientras dura,
+porque si no parece que la app se ha roto.
 
 Lo lleva `src/stores/vista.ts`. Para saber si hay que pintar algo de
 administrador, **usa `esAdmin` de ese store, no `role` del de sesión**: `role`

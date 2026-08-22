@@ -97,9 +97,16 @@ Las horas que imputa cada trabajador.
 | ended_at   | fin (null = todavía en marcha)               |
 
 **Quién ve qué**: cada usuario ve solo sus propias entradas; el admin las ve
-todas. De eso vive la pantalla "Horas del equipo" (`/horas`, solo admin): no
-necesita permisos especiales ni vistas nuevas, porque la política de select ya
-se los da.
+todas. De eso vive la pantalla de `/horas`, que es **la misma para los dos** y
+cambia de alcance según quién mire: al admin le sale "Horas del equipo" (todas,
+y puede agrupar por persona); a cualquier otro, "Mis horas" (solo las suyas,
+por proyecto o por producto).
+
+Quien reparte de verdad es la política de select, no la pantalla: aunque
+alguien trasteara con la petición, Postgres no le devolvería las horas de un
+compañero. La vista filtra igualmente por `user_id` para no pedir lo que no va
+a usar, y para que el "ver como usuario" del administrador enseñe lo que vería
+el equipo y no sus propias horas.
 
 **Lo apuntado no se borra: solo el admin puede** (migración
 `0005_solo_admin_toca_horas_imputadas.sql`). Cualquiera con sesión apunta sus
@@ -152,7 +159,8 @@ el admin crea/edita/borra.
 del menú del equipo y la ruta `/calendario` pide `requiresAdmin`. Las
 políticas RLS se dejaron como estaban, así que si algún día se decide que el
 equipo vuelva a consultarlo, basta con quitar ese `requiresAdmin` y volver a
-poner la pestaña; no hace falta migración.
+poner la pestaña; no hace falta migración. (Eso es justo lo que se hizo con
+los avisos, que sí volvieron.)
 
 **Cuidado con la hora**: `start_at` y `end_at` son `timestamptz`. Un
 `<input type="datetime-local">` da la hora local sin zona (`2026-09-10T08:00`);
@@ -163,9 +171,10 @@ al guardar y volver a hora local al rellenar el formulario (ver `aInputLocal` y
 
 ## `notices`
 
-Avisos/textos que publica el admin. Misma forma y mismas reglas que
-`calendar_events`, incluido lo de la pestaña: la ruta `/avisos` también es
-solo de administrador desde que se quitó del menú del equipo.
+Avisos/textos que publica el admin para que los lea el equipo. Misma forma y
+mismas reglas que `calendar_events`, pero con `title` + `body` en vez de
+fechas — y aquí la pestaña **sí la ve todo el mundo**: `/avisos` solo pide
+sesión. Los crea y los borra únicamente el admin.
 
 ## Función auxiliar: `is_admin()`
 

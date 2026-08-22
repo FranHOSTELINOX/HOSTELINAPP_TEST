@@ -25,13 +25,15 @@ const router = createRouter({
       path: '/avisos',
       name: 'avisos',
       component: () => import('../views/NoticesView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true },
     },
     {
+      // Todo el mundo entra aquí. Lo que cambia es el alcance: el
+      // administrador ve las horas de todos y cada uno las suyas.
       path: '/horas',
       name: 'horas',
       component: () => import('../views/TeamHoursView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true },
     },
     {
       path: '/admin',

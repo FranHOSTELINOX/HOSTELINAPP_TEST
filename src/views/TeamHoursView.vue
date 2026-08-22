@@ -1,11 +1,18 @@
 <script setup lang="ts">
-// Las horas de todo el equipo, para el administrador.
+// Las horas imputadas. La misma pantalla sirve para dos cosas según quién
+// mire: el administrador ve las de todo el equipo y puede agruparlas por
+// persona; cualquier otro ve solo las suyas.
 //
-// La base de datos ya deja al admin ver los registros de todos
-// (política time_entries_select_own_or_admin), así que aquí solo hay
-// consulta y cuentas: nada que escribir.
+// El filtro de verdad lo pone la base de datos (política
+// time_entries_select_own_or_admin: cada uno ve lo suyo, el admin lo ve todo),
+// así que aunque alguien trastee con la petición no va a sacar las horas de un
+// compañero. Aquí se filtra igualmente por dos motivos: no pedir lo que no se
+// va a usar, y que el "ver como usuario" del administrador enseñe lo mismo que
+// vería el equipo, y no sus horas de admin.
 import { computed, onMounted, ref, watch } from 'vue'
 import { supabase } from '../lib/supabase'
+import { session } from '../stores/auth'
+import { esAdmin } from '../stores/vista'
 import type { Database } from '../lib/database.types'
 import { formatDate, formatDuration, formatTime, initials } from '../lib/format'
 import { minutosPrevistosEnRango } from '../lib/horario'
@@ -31,7 +38,7 @@ type Rango = 'semana' | 'mes' | 'mesPasado' | 'personalizado'
 type Agrupacion = 'persona' | 'proyecto' | 'producto'
 
 const rango = ref<Rango>('semana')
-const agruparPor = ref<Agrupacion>('persona')
+const agruparPor = ref<Agrupacion>(esAdmin.value ? 'persona' : 'proyecto')
 const desdeManual = ref('')
 const hastaManual = ref('')
 /** Grupo desplegado, para ver su desglose. */
@@ -44,11 +51,13 @@ const rangos: { id: Rango; etiqueta: string }[] = [
   { id: 'personalizado', etiqueta: 'Otras fechas' },
 ]
 
-const agrupaciones: { id: Agrupacion; etiqueta: string }[] = [
-  { id: 'persona', etiqueta: 'Por persona' },
+// Agrupar "por persona" solo tiene sentido cuando hay más de una: a quien ve
+// solo sus horas se le ofrecen proyecto y producto.
+const agrupaciones = computed<{ id: Agrupacion; etiqueta: string }[]>(() => [
+  ...(esAdmin.value ? [{ id: 'persona' as const, etiqueta: 'Por persona' }] : []),
   { id: 'proyecto', etiqueta: 'Por proyecto' },
   { id: 'producto', etiqueta: 'Por producto' },
-]
+])
 
 /** El lunes de la semana de una fecha (aquí la semana empieza en lunes). */
 function lunesDe(d: Date): Date {
@@ -133,6 +142,12 @@ function subclaveDe(e: TimeEntry): string {
       ? `${nombreProyecto(e.product_id)} · ${nombreProducto(e.product_id)}`
       : 'Sin producto'
   }
+  // Agrupando por proyecto, dentro se ve el reparto por producto. Agrupando
+  // ya por producto no queda nada por desglosar, así que solo quedan los
+  // registros sueltos.
+  if (!esAdmin.value) {
+    return agruparPor.value === 'proyecto' ? nombreProducto(e.product_id) : ''
+  }
   return nombreUsuario(e.user_id)
 }
 
@@ -163,6 +178,7 @@ const grupos = computed<Grupo[]>(() => {
       sub.set(k, (sub.get(k) ?? 0) + duracion(e))
     }
     g.detalle = [...sub.entries()]
+      .filter(([nombre]) => nombre !== '')
       .map(([nombre, total]) => ({ nombre, total }))
       .sort((a, b) => b.total - a.total)
     g.items.sort((a, b) => (a.started_at < b.started_at ? 1 : -1))
@@ -185,15 +201,23 @@ async function cargar() {
   const inicio = new Date(periodo.value.desde)
   inicio.setHours(0, 0, 0, 0)
 
+  let consulta = supabase
+    .from('time_entries')
+    .select('*')
+    .not('ended_at', 'is', null)
+    .gte('started_at', inicio.toISOString())
+    .lt('started_at', finExclusivo.toISOString())
+    .order('started_at', { ascending: false })
+
+  if (!esAdmin.value) {
+    consulta = consulta.eq('user_id', session.value?.user.id ?? '')
+  }
+
   const [te, pe, pr, pd] = await Promise.all([
-    supabase
-      .from('time_entries')
-      .select('*')
-      .not('ended_at', 'is', null)
-      .gte('started_at', inicio.toISOString())
-      .lt('started_at', finExclusivo.toISOString())
-      .order('started_at', { ascending: false }),
-    supabase.from('profiles').select('*'),
+    consulta,
+    // La lista de personas solo hace falta para poder poner nombres a las
+    // horas de otros, cosa que solo hace el administrador.
+    esAdmin.value ? supabase.from('profiles').select('*') : Promise.resolve({ data: [], error: null }),
     supabase.from('projects').select('*'),
     supabase.from('products').select('*'),
   ])
@@ -216,14 +240,26 @@ watch(agruparPor, () => {
   abierto.value = null
 })
 
+// Si el administrador entra o sale del "ver como usuario", cambia lo que hay
+// que pedir (todas las horas o solo las suyas) y cómo se puede agrupar.
+watch(esAdmin, (ahoraAdmin) => {
+  if (!ahoraAdmin && agruparPor.value === 'persona') agruparPor.value = 'proyecto'
+  abierto.value = null
+  cargar()
+})
+
 onMounted(cargar)
 </script>
 
 <template>
   <PageHeader
-    eyebrow="Panel del administrador"
-    title="Horas del equipo"
-    :subtitle="`Lo que ha imputado cada uno entre el ${etiquetaPeriodo}.`"
+    :eyebrow="esAdmin ? 'Panel del administrador' : 'Mi jornada'"
+    :title="esAdmin ? 'Horas del equipo' : 'Mis horas'"
+    :subtitle="
+      esAdmin
+        ? `Lo que ha imputado cada uno entre el ${etiquetaPeriodo}.`
+        : `Lo que has imputado tú entre el ${etiquetaPeriodo}.`
+    "
   />
 
   <AlertMessage v-if="error" kind="error" class="mb">{{ error }}</AlertMessage>
@@ -281,7 +317,7 @@ onMounted(cargar)
   <EmptyState
     v-else-if="entries.length === 0"
     icon="barras"
-    title="No hay horas imputadas en este periodo"
+    :title="esAdmin ? 'No hay horas imputadas en este periodo' : 'No has imputado horas en este periodo'"
     text="Prueba a cambiar las fechas de arriba."
   />
 
@@ -291,7 +327,12 @@ onMounted(cargar)
       <div class="panel total">
         <span class="cifra-eti">Total imputado</span>
         <span class="total-num mono">{{ formatDuration(totalGeneral) }}</span>
-        <span class="small dim">{{ entries.length }} registros</span>
+        <span class="small dim">
+          {{ entries.length }} {{ entries.length === 1 ? 'registro' : 'registros' }}
+          <template v-if="!esAdmin && previstoPorPersona > 0">
+            · {{ Math.round((totalGeneral / previstoPorPersona) * 100) }}% de lo previsto
+          </template>
+        </span>
       </div>
       <div class="panel total">
         <span class="cifra-eti">
@@ -299,8 +340,8 @@ onMounted(cargar)
         </span>
         <span class="total-num mono">{{ grupos.length }}</span>
       </div>
-      <div v-if="agruparPor === 'persona'" class="panel total">
-        <span class="cifra-eti">Previstas por persona</span>
+      <div v-if="agruparPor === 'persona' || !esAdmin" class="panel total">
+        <span class="cifra-eti">{{ esAdmin ? 'Previstas por persona' : 'Previstas' }}</span>
         <span class="total-num mono">{{ formatDuration(previstoPorPersona) }}</span>
         <span class="small dim">según el horario del taller</span>
       </div>
@@ -353,10 +394,10 @@ onMounted(cargar)
 
         <!-- Desglose por la otra dimensión -->
         <div v-if="abierto === g.id" class="detalle">
-          <p class="eyebrow detalle-titulo">
-            {{ agruparPor === 'persona' ? 'En qué' : 'Quién' }}
+          <p v-if="g.detalle.length > 0" class="eyebrow detalle-titulo">
+            {{ agruparPor === 'persona' ? 'En qué' : esAdmin ? 'Quién' : 'En qué' }}
           </p>
-          <ul class="detalle-lista">
+          <ul v-if="g.detalle.length > 0" class="detalle-lista">
             <li v-for="d in g.detalle" :key="d.nombre">
               <span class="detalle-nombre">{{ d.nombre }}</span>
               <span class="detalle-cifra mono">{{ formatDuration(d.total) }}</span>
@@ -371,7 +412,7 @@ onMounted(cargar)
                 <span class="dim">
                   {{ formatTime(e.started_at) }}–{{ formatTime(e.ended_at as string) }}
                 </span>
-                <template v-if="agruparPor !== 'persona'">
+                <template v-if="agruparPor !== 'persona' && esAdmin">
                   · {{ nombreUsuario(e.user_id) }}
                 </template>
                 <template v-else-if="e.notes"> · {{ e.notes }}</template>

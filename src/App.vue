@@ -22,17 +22,41 @@ watch(session, (newSession) => {
   }
 })
 
-type NavItem = { to: string; label: string; short: string; icon: IconName; admin?: boolean }
+type NavItem = {
+  to: string
+  label: string
+  short: string
+  icon: IconName
+  admin?: boolean
+  /** Cómo se llama la sección para quien no es administrador. */
+  labelUsuario?: string
+  shortUsuario?: string
+}
 
 const navItems: NavItem[] = [
   { to: '/tiempos', label: 'Tiempos', short: 'Tiempos', icon: 'reloj' },
   { to: '/calendario', label: 'Calendario', short: 'Agenda', icon: 'calendario', admin: true },
-  { to: '/avisos', label: 'Avisos', short: 'Avisos', icon: 'avisos', admin: true },
-  { to: '/horas', label: 'Horas del equipo', short: 'Horas', icon: 'barras', admin: true },
+  { to: '/avisos', label: 'Avisos', short: 'Avisos', icon: 'avisos' },
+  {
+    to: '/horas',
+    label: 'Horas del equipo',
+    short: 'Horas',
+    labelUsuario: 'Mis horas',
+    shortUsuario: 'Mis horas',
+    icon: 'barras',
+  },
   { to: '/admin', label: 'Administración', short: 'Admin', icon: 'admin', admin: true },
 ]
 
-const visibleNav = computed(() => navItems.filter((item) => !item.admin || esAdmin.value))
+const visibleNav = computed(() =>
+  navItems
+    .filter((item) => !item.admin || esAdmin.value)
+    .map((item) =>
+      esAdmin.value
+        ? item
+        : { ...item, label: item.labelUsuario ?? item.label, short: item.shortUsuario ?? item.short },
+    ),
+)
 
 // Al pasar a la vista de usuario, las pantallas de administración dejan de
 // estar permitidas: si estabas en una, hay que salir de ella.
