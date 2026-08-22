@@ -106,7 +106,9 @@ test/                     tests de Vitest
   Function nueva dentro de `supabase/functions/`, nunca en el frontend.
   Cada función debe comprobar ella misma que quien la llama es admin antes
   de hacer nada (ver `supabase/functions/admin-create-user/index.ts` como
-  ejemplo). Se despliegan solas con `.github/workflows/deploy-functions.yml`
+  ejemplo). Al llamarlas desde el frontend, saca el motivo del error con
+  `motivoDeFuncion()` (en `src/views/AdminView.vue`): supabase-js tapa las
+  respuestas que no son 2xx con un mensaje genérico en inglés. Se despliegan solas con `.github/workflows/deploy-functions.yml`
   al hacer push si tocas esa carpeta.
 - **Vistas nuevas**: añádelas en `src/views/`, regístralas en
   `src/router/index.ts` con `meta.requiresAuth` (y `meta.requiresAdmin` si

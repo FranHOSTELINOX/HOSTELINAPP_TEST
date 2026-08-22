@@ -41,6 +41,9 @@ const newEvent = ref({ title: '', description: '', start_at: '', assigned_to: ''
 const newNotice = ref({ title: '', body: '', assigned_to: '' })
 const newUser = ref({ full_name: '', email: '', password: '', puesto: '', isAdmin: false })
 const editUser = ref({ full_name: '', puesto: '', isAdmin: false })
+/** Contraseña nueva que el admin le pone a alguien que ha perdido la suya. */
+const nuevaClave = ref('')
+const cambiandoClave = ref(false)
 
 type Seccion = 'equipo' | 'proyectos' | 'calendario' | 'avisos'
 
@@ -71,6 +74,7 @@ function limpiar() {
   newNotice.value = { title: '', body: '', assigned_to: '' }
   newUser.value = { full_name: '', email: '', password: '', puesto: '', isAdmin: false }
   editUser.value = { full_name: '', puesto: '', isAdmin: false }
+  nuevaClave.value = ''
 }
 
 const admins = computed(() => users.value.filter((u) => u.role === 'admin').length)
@@ -108,6 +112,28 @@ function aInputLocal(iso: string): string {
 
 function aISO(local: string): string {
   return new Date(local).toISOString()
+}
+
+/**
+ * Saca el motivo de verdad cuando falla una Edge Function.
+ *
+ * supabase-js envuelve las respuestas que no son 2xx en un error cuyo mensaje
+ * es siempre el mismo ("Edge Function returned a non-2xx status code") y deja
+ * el motivo bueno en el cuerpo de la respuesta. Sin esto, el administrador ve
+ * un galimatías en inglés en vez de "La contraseña debe tener al menos 8
+ * caracteres", que es justo lo que necesita leer.
+ */
+async function motivoDeFuncion(err: unknown, porDefecto: string): Promise<string> {
+  const respuesta = (err as { context?: Response })?.context
+  if (respuesta && typeof respuesta.json === 'function') {
+    try {
+      const cuerpo = await respuesta.json()
+      if (cuerpo?.error) return String(cuerpo.error)
+    } catch {
+      // El cuerpo no era JSON; nos quedamos con el mensaje de siempre.
+    }
+  }
+  return err instanceof Error ? err.message : porDefecto
 }
 
 /** Traduce el error de clave ajena a algo que se entienda. */
@@ -198,6 +224,39 @@ async function guardarProyecto() {
   limpiar()
   message.value = eraEdicion ? 'Proyecto actualizado.' : 'Proyecto creado.'
   await loadProjects()
+}
+
+/**
+ * Le pone una contraseña nueva a otra persona. Va por Edge Function porque
+ * exige permisos de administrador sobre Supabase Auth, y esos no pueden
+ * estar en el navegador.
+ */
+async function cambiarClave() {
+  if (!editando.value) return
+  error.value = ''
+  message.value = ''
+
+  if (nuevaClave.value.length < 8) {
+    error.value = 'La contraseña debe tener al menos 8 caracteres.'
+    return
+  }
+
+  cambiandoClave.value = true
+  try {
+    const { data, error: fnError } = await supabase.functions.invoke('admin-set-password', {
+      body: { user_id: editando.value, password: nuevaClave.value },
+    })
+    if (fnError) throw fnError
+    if (data?.error) throw new Error(data.error)
+
+    const quien = nombreDe(editando.value, '')
+    message.value = `Contraseña cambiada. Pásasela a ${quien} y que se la cambie al entrar.`
+    nuevaClave.value = ''
+  } catch (err) {
+    error.value = await motivoDeFuncion(err, 'No se pudo cambiar la contraseña')
+  } finally {
+    cambiandoClave.value = false
+  }
 }
 
 async function borrarProyecto(id: string) {
@@ -453,7 +512,7 @@ async function createUser() {
     message.value = eraAdmin ? 'Administrador creado.' : 'Usuario creado.'
     await loadUsers()
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'No se pudo crear el usuario'
+    error.value = await motivoDeFuncion(err, 'No se pudo crear el usuario')
   } finally {
     guardando.value = false
   }
@@ -504,10 +563,7 @@ onMounted(async () => {
         <h3>Editar usuario</h3>
       </header>
       <div class="panel-body">
-        <p class="small muted intro">
-          {{ nombreDe(editando, '') }} · para cambiar su contraseña, tiene que
-          entrar él y hacerlo desde su cuenta.
-        </p>
+        <p class="small muted intro">{{ nombreDe(editando, '') }}</p>
         <form class="form-grid form-grid-2" @submit.prevent="guardarUsuario">
           <div class="field span-2">
             <label class="field-label" for="eu-nombre">Nombre completo</label>
@@ -541,6 +597,39 @@ onMounted(async () => {
             <button type="button" class="btn btn-ghost" @click="limpiar">Cancelar</button>
           </div>
         </form>
+
+        <!-- Aparte del resto, y con su propio botón: cambiar la contraseña no
+             es lo mismo que corregirle el puesto, y no debe irse en el mismo
+             "Guardar cambios" sin querer. -->
+        <div class="clave">
+          <p class="eyebrow">Si ha perdido su contraseña</p>
+          <p class="small muted">
+            Ponle una nueva y pásasela. Al entrar, él puede cambiarla desde
+            «Contraseña». No hace falta saber la anterior.
+          </p>
+          <form class="clave-form" @submit.prevent="cambiarClave">
+            <div class="field">
+              <label class="field-label" for="eu-clave">Nueva contraseña</label>
+              <!-- A la vista y no con puntitos: el administrador tiene que
+                   poder leerla para dictársela. -->
+              <input
+                id="eu-clave"
+                v-model="nuevaClave"
+                class="input"
+                type="text"
+                autocomplete="off"
+                placeholder="Mínimo 8 caracteres"
+              />
+            </div>
+            <button
+              type="submit"
+              class="btn"
+              :disabled="cambiandoClave || nuevaClave.length < 8"
+            >
+              {{ cambiandoClave ? 'Cambiando…' : 'Cambiar contraseña' }}
+            </button>
+          </form>
+        </div>
       </div>
     </section>
 
@@ -1275,6 +1364,29 @@ onMounted(async () => {
 
 .fila .acciones {
   margin-left: auto;
+}
+
+.clave {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.clave p {
+  margin: 0 0 0.5rem;
+}
+
+.clave-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: 0.75rem;
+}
+
+.clave-form .field {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 .acciones {

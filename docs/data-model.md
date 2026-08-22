@@ -25,6 +25,13 @@ directa a la base de datos, como la que usan las migraciones, no cuenta como
 **Importante**: nadie es `admin` por defecto, ni siquiera el primer usuario.
 Hay que ponerlo a mano la primera vez (ver `docs/supabase.md`).
 
+**Contraseñas perdidas**: el admin le pone una nueva desde la propia app
+(Administración → Equipo → editar a esa persona → "Si ha perdido su
+contraseña"). Va por la Edge Function `admin-set-password`, que comprueba que
+quien llama es admin antes de tocar nada. No pide la contraseña anterior a
+propósito: el sentido de esto es justamente que nadie la recuerda. Cada uno
+puede cambiar la suya desde "Contraseña", y ahí sí hace falta la actual.
+
 **Cómo se crean los usuarios**: el admin los da de alta desde la propia app
 (pantalla Administración → "Nuevo usuario"), que llama a la Edge Function
 `admin-create-user` (`supabase/functions/admin-create-user/`). Esa función es
