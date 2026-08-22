@@ -192,9 +192,13 @@ async function cargarCatalogo() {
 }
 
 async function loadEntries() {
+  // Filtrado por user_id a propósito: RLS le daría al administrador los
+  // registros de TODO el equipo, y esta pantalla es "mis horas". Además, la
+  // comprobación de solapes solo tiene sentido contra los ratos de uno mismo.
   const { data, error: fetchError } = await supabase
     .from('time_entries')
     .select('*')
+    .eq('user_id', session.value?.user.id ?? '')
     .order('started_at', { ascending: false })
 
   if (fetchError) error.value = fetchError.message
@@ -216,6 +220,22 @@ async function guardar() {
   const fin = new Date(`${fecha}T${hasta}`)
   if (fin <= inicio) {
     error.value = 'La hora de fin tiene que ser posterior a la de inicio.'
+    return
+  }
+
+  // Nadie puede estar en dos productos a la vez. La base de datos también lo
+  // impide (trigger time_entries_sin_solape), pero avisar aquí permite decir
+  // con qué rato choca en vez de soltar un error de Postgres.
+  const choque = cerradas.value.find((e) => {
+    const eIni = new Date(e.started_at).getTime()
+    const eFin = new Date(e.ended_at as string).getTime()
+    return eIni < fin.getTime() && inicio.getTime() < eFin
+  })
+  if (choque) {
+    error.value =
+      `Ese rato se pisa con lo que ya tienes apuntado de ` +
+      `${formatTime(choque.started_at)} a ${formatTime(choque.ended_at as string)} ` +
+      `en ${etiquetaProducto(choque.product_id)}. No se puede estar en dos productos a la vez.`
     return
   }
 

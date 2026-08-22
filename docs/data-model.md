@@ -152,10 +152,21 @@ y parar; se quitó a propósito. Los registros que quedaran abiertos de
 entonces (`ended_at` a null) no cuentan para los totales y la pantalla los
 saca aparte para poder borrarlos.
 
-**El horario del taller** (lunes a viernes 07:00–15:00 y 16:00–18:00; sábados
+**Nadie está en dos sitios a la vez**: dos ratos de la misma persona no
+pueden pisarse (migración `0008`). Lo impide un trigger,
+`time_entries_sin_solape`, y la pantalla avisa antes con el rato concreto que
+choca. Los registros sin cerrar no cuentan, porque no ocupan un rato
+determinado. Es un trigger y no una restricción de exclusión a propósito: una
+restricción se aplicaría también al histórico y un solape antiguo habría hecho
+fallar la migración entera.
+
+**El horario del taller** (lunes a viernes 06:30–15:00 y 16:00–18:00; sábados
 06:30–11:30) vive en `src/lib/horario.ts`, con sus tests. Si algún día cambia
 el convenio, se cambia solo la tabla `TRAMOS` de ese archivo y se reajustan
 solos los desplegables, los avisos y las horas previstas.
+
+Desde agosto de 2026 la entrada entre semana es a las 06:30, no a las 07:00:
+son 10 h 30 previstas de lunes a viernes.
 
 De ahí salen los desplegables de "desde" y "hasta": `franjasDelDia()` parte el
 horario en huecos de 15 minutos agrupados por tramo (mañana y tarde), así que
