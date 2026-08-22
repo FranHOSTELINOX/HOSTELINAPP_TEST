@@ -35,7 +35,7 @@ const borrando = ref<string | null>(null)
 /** Proyecto cuyos productos se están gestionando. */
 const proyectoSel = ref<string | null>(null)
 
-const newProject = ref({ name: '', client: '', active: true })
+const newProject = ref({ clientName: '', projectName: '', active: true })
 const newProduct = ref({ name: '', active: true })
 const newEvent = ref({ title: '', description: '', start_at: '', assigned_to: '' })
 const newNotice = ref({ title: '', body: '', assigned_to: '' })
@@ -65,7 +65,7 @@ function limpiar() {
   borrando.value = null
   error.value = ''
   message.value = ''
-  newProject.value = { name: '', client: '', active: true }
+  newProject.value = { clientName: '', projectName: '', active: true }
   newProduct.value = { name: '', active: true }
   newEvent.value = { title: '', description: '', start_at: '', assigned_to: '' }
   newNotice.value = { title: '', body: '', assigned_to: '' }
@@ -129,7 +129,7 @@ async function loadUsers() {
 }
 
 async function loadProjects() {
-  const { data, error: e } = await supabase.from('projects').select('*').order('name')
+  const { data, error: e } = await supabase.from('projects').select('*').order('client_name')
   if (e) error.value = e.message
   else projects.value = data ?? []
 }
@@ -164,7 +164,11 @@ function editarProyecto(p: Project) {
   borrando.value = null
   error.value = ''
   message.value = ''
-  newProject.value = { name: p.name, client: p.client ?? '', active: p.active }
+  newProject.value = {
+    clientName: p.client_name,
+    projectName: p.project_name ?? '',
+    active: p.active,
+  }
 }
 
 async function guardarProyecto() {
@@ -174,8 +178,8 @@ async function guardarProyecto() {
   guardando.value = true
 
   const campos = {
-    name: newProject.value.name,
-    client: newProject.value.client || null,
+    client_name: newProject.value.clientName,
+    project_name: newProject.value.projectName || null,
     active: newProject.value.active,
   }
 
@@ -668,23 +672,23 @@ onMounted(async () => {
         <div class="panel-body">
           <form class="form-grid" @submit.prevent="guardarProyecto">
             <div class="field">
-              <label class="field-label" for="p-nombre">Nombre del proyecto</label>
+              <label class="field-label" for="p-cliente">Nombre del cliente</label>
               <input
-                id="p-nombre"
-                v-model="newProject.name"
+                id="p-cliente"
+                v-model="newProject.clientName"
                 class="input"
-                placeholder="Ej. Hotel Giralda"
+                placeholder="Ej. Hoteles del Sur, S.L."
                 required
               />
             </div>
 
             <div class="field">
-              <label class="field-label" for="p-cliente">Cliente (opcional)</label>
+              <label class="field-label" for="p-nombre">Proyecto (opcional)</label>
               <input
-                id="p-cliente"
-                v-model="newProject.client"
+                id="p-nombre"
+                v-model="newProject.projectName"
                 class="input"
-                placeholder="Ej. Hoteles del Sur, S.L."
+                placeholder="Ej. Hotel Giralda"
               />
             </div>
 
@@ -734,9 +738,9 @@ onMounted(async () => {
           >
             <button type="button" class="fila-elegir" @click="elegirProyecto(p.id)">
               <span class="fila-texto">
-                <strong>{{ p.name }}</strong>
+                <strong>{{ p.client_name }}</strong>
                 <span class="small dim">
-                  {{ p.client || 'Sin cliente' }} ·
+                  {{ p.project_name || 'Sin proyecto' }} ·
                   {{ cuentaProductos(p.id) }}
                   {{ cuentaProductos(p.id) === 1 ? 'producto' : 'productos' }}
                 </span>
@@ -757,7 +761,7 @@ onMounted(async () => {
               <button
                 type="button"
                 class="btn btn-ghost btn-sm"
-                :aria-label="`Editar ${p.name}`"
+                :aria-label="`Editar ${p.client_name}`"
                 @click="editarProyecto(p)"
               >
                 <AppIcon name="editar" :size="15" />
@@ -765,7 +769,7 @@ onMounted(async () => {
               <button
                 type="button"
                 class="btn btn-ghost btn-sm"
-                :aria-label="`Borrar ${p.name}`"
+                :aria-label="`Borrar ${p.client_name}`"
                 @click="borrando = p.id"
               >
                 <AppIcon name="borrar" :size="15" />
@@ -782,7 +786,7 @@ onMounted(async () => {
         <AppIcon name="tareas" :size="17" />
         <h3>Productos</h3>
         <span class="spacer"></span>
-        <span v-if="proyectoActual" class="pill pill-accent">{{ proyectoActual.name }}</span>
+        <span v-if="proyectoActual" class="pill pill-accent">{{ proyectoActual.client_name }}</span>
       </header>
 
       <p v-if="!proyectoActual" class="panel-body muted small">

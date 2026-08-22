@@ -64,22 +64,24 @@ export interface Database {
       projects: {
         Row: {
           id: string
-          name: string
-          client: string | null
+          // El cliente manda: es el obligatorio. El nombre del proyecto
+          // es opcional (ver 0006_cliente_obligatorio_proyecto_opcional).
+          client_name: string
+          project_name: string | null
           active: boolean
           created_by: string
           created_at: string
         }
         Insert: {
           id?: string
-          name: string
-          client?: string | null
+          client_name: string
+          project_name?: string | null
           active?: boolean
           created_by: string
         }
         Update: {
-          name?: string
-          client?: string | null
+          client_name?: string
+          project_name?: string | null
           active?: boolean
         }
         Relationships: []

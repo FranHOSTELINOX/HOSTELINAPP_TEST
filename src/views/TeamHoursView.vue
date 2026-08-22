@@ -14,7 +14,7 @@ import { supabase } from '../lib/supabase'
 import { session } from '../stores/auth'
 import { esAdmin } from '../stores/vista'
 import type { Database } from '../lib/database.types'
-import { formatDate, formatDuration, formatTime, initials } from '../lib/format'
+import { etiquetaProyecto, formatDate, formatDuration, formatTime, initials } from '../lib/format'
 import { minutosPrevistosEnRango } from '../lib/horario'
 import AppIcon from '../components/AppIcon.vue'
 import AlertMessage from '../components/AlertMessage.vue'
@@ -55,7 +55,7 @@ const rangos: { id: Rango; etiqueta: string }[] = [
 // solo sus horas se le ofrecen proyecto y producto.
 const agrupaciones = computed<{ id: Agrupacion; etiqueta: string }[]>(() => [
   ...(esAdmin.value ? [{ id: 'persona' as const, etiqueta: 'Por persona' }] : []),
-  { id: 'proyecto', etiqueta: 'Por proyecto' },
+  { id: 'proyecto', etiqueta: 'Por cliente' },
   { id: 'producto', etiqueta: 'Por producto' },
 ])
 
@@ -112,7 +112,8 @@ function nombreProyecto(productId: string | null) {
   if (!productId) return 'Sin proyecto'
   const prod = products.value.find((p) => p.id === productId)
   if (!prod) return 'Producto borrado'
-  return projects.value.find((p) => p.id === prod.project_id)?.name ?? 'Proyecto borrado'
+  const proy = projects.value.find((p) => p.id === prod.project_id)
+  return proy ? etiquetaProyecto(proy.client_name, proy.project_name) : 'Proyecto borrado'
 }
 
 function duracion(e: TimeEntry) {
@@ -336,7 +337,7 @@ onMounted(cargar)
       </div>
       <div class="panel total">
         <span class="cifra-eti">
-          {{ agruparPor === 'persona' ? 'Personas' : agruparPor === 'proyecto' ? 'Proyectos' : 'Productos' }}
+          {{ agruparPor === 'persona' ? 'Personas' : agruparPor === 'proyecto' ? 'Clientes' : 'Productos' }}
         </span>
         <span class="total-num mono">{{ grupos.length }}</span>
       </div>

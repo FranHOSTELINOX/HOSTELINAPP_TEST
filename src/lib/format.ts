@@ -123,3 +123,14 @@ export function initials(nameOrEmail: string): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[1][0]).toUpperCase()
 }
+
+/**
+ * Cómo se nombra un trabajo del catálogo: manda el cliente, que es el dato
+ * obligatorio, y detrás va el proyecto si se rellenó.
+ *
+ *   etiquetaProyecto('Hoteles del Sur', 'Hotel Giralda')  // "Hoteles del Sur · Hotel Giralda"
+ *   etiquetaProyecto('Hoteles del Sur', null)             // "Hoteles del Sur"
+ */
+export function etiquetaProyecto(cliente: string, proyecto: string | null): string {
+  return proyecto ? `${cliente} · ${proyecto}` : cliente
+}

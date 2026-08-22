@@ -3,6 +3,7 @@ import {
   daysFromToday,
   dueState,
   entryDuration,
+  etiquetaProyecto,
   formatClock,
   formatDateTime,
   formatDayLabel,
@@ -124,5 +125,18 @@ describe('initials', () => {
 
   it('no revienta si no hay nada', () => {
     expect(initials('')).toBe('?')
+  })
+})
+
+describe('etiquetaProyecto', () => {
+  it('pone el cliente delante y el proyecto detrás', () => {
+    expect(etiquetaProyecto('Hoteles del Sur', 'Hotel Giralda')).toBe(
+      'Hoteles del Sur · Hotel Giralda',
+    )
+  })
+
+  it('con el proyecto vacío deja solo el cliente', () => {
+    expect(etiquetaProyecto('Hoteles del Sur', null)).toBe('Hoteles del Sur')
+    expect(etiquetaProyecto('Hoteles del Sur', '')).toBe('Hoteles del Sur')
   })
 })

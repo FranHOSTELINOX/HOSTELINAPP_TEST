@@ -7,6 +7,7 @@ import type { Database } from '../lib/database.types'
 import {
   daysFromToday,
   entryDuration,
+  etiquetaProyecto,
   formatDate,
   formatDuration,
   formatTime,
@@ -139,7 +140,9 @@ function etiquetaProducto(productId: string | null): string {
   const producto = products.value.find((p) => p.id === productId)
   if (!producto) return 'Producto borrado'
   const proyecto = projects.value.find((p) => p.id === producto.project_id)
-  return proyecto ? `${proyecto.name} · ${producto.name}` : producto.name
+  return proyecto
+    ? `${etiquetaProyecto(proyecto.client_name, proyecto.project_name)} · ${producto.name}`
+    : producto.name
 }
 
 const totalHoy = computed(() =>
@@ -172,7 +175,7 @@ const porDia = computed(() => {
 
 async function cargarCatalogo() {
   const [pr, pd] = await Promise.all([
-    supabase.from('projects').select('*').order('name'),
+    supabase.from('projects').select('*').order('client_name'),
     supabase.from('products').select('*').order('name'),
   ])
   if (pr.error) error.value = pr.error.message
@@ -197,7 +200,7 @@ async function guardar() {
   message.value = ''
 
   if (requiereProducto.value && !parte.value.productoId) {
-    error.value = 'Elige el proyecto y el producto al que imputas las horas.'
+    error.value = 'Elige el cliente y el producto al que imputas las horas.'
     return
   }
 
@@ -277,8 +280,8 @@ onMounted(async () => {
     <EmptyState
       v-if="proyectosActivos.length === 0 && requiereProducto"
       icon="puesto"
-      title="Todavía no hay proyectos"
-      text="El administrador tiene que crear los proyectos y sus productos antes de que puedas imputar horas."
+      title="Todavía no hay clientes en el catálogo"
+      text="El administrador tiene que dar de alta los clientes y sus productos antes de que puedas imputar horas."
     />
 
     <template v-else>
@@ -297,11 +300,11 @@ onMounted(async () => {
             </div>
 
             <div class="field">
-              <label class="field-label" for="proyecto">Proyecto</label>
+              <label class="field-label" for="proyecto">Cliente</label>
               <select id="proyecto" v-model="parte.proyectoId" class="select">
-                <option value="">Elige un proyecto…</option>
+                <option value="">Elige un cliente…</option>
                 <option v-for="p in proyectosActivos" :key="p.id" :value="p.id">
-                  {{ p.name }}<template v-if="p.client"> — {{ p.client }}</template>
+                  {{ etiquetaProyecto(p.client_name, p.project_name) }}
                 </option>
               </select>
             </div>
@@ -315,7 +318,7 @@ onMounted(async () => {
                 :disabled="!parte.proyectoId"
               >
                 <option value="">
-                  {{ parte.proyectoId ? 'Elige un producto…' : 'Elige antes el proyecto' }}
+                  {{ parte.proyectoId ? 'Elige un producto…' : 'Elige antes el cliente' }}
                 </option>
                 <option v-for="p in productosDelProyecto" :key="p.id" :value="p.id">
                   {{ p.name }}
