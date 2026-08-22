@@ -15,7 +15,16 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://zpacoqndlcirbsxguxvi.supabase.co' }}
           SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYWNvcW5kbGNpcmJzeGd1eHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMzY2MDUsImV4cCI6MjEwMjgxMjYwNX0.6OOq5y0cyuZDtcK_8pZ4Qy26kL6TRaxSruJdeVA0Sis' }}
+        # Dos cosas cambiadas respecto a la primera versión, que devolvía 401:
+        #  - Se manda también la cabecera Authorization. PostgREST la pide
+        #    además de apikey; el cliente de la app siempre manda las dos.
+        #  - Se consulta una tabla de verdad en vez de la raíz de la API. La
+        #    raíz puede contestar sin llegar a tocar la base de datos, y lo
+        #    que queremos es justo eso: que la base de datos se dé por usada.
+        #    Sin sesión, RLS no deja ver ninguna fila y devuelve [] con un
+        #    200, que es lo que buscamos.
         run: |
           curl --fail --silent --show-error \
-            "$SUPABASE_URL/rest/v1/" \
-            -H "apikey: $SUPABASE_ANON_KEY"
+            "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY"
