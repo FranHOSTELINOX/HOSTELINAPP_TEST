@@ -15,6 +15,8 @@ export interface Database {
           full_name: string | null
           role: Role
           puesto: string | null
+          // true = todavía usa la contraseña que le dio el administrador.
+          must_change_password: boolean
           created_at: string
         }
         Insert: {
@@ -23,11 +25,13 @@ export interface Database {
           full_name?: string | null
           role?: Role
           puesto?: string | null
+          must_change_password?: boolean
         }
         Update: {
           full_name?: string | null
           role?: Role
           puesto?: string | null
+          must_change_password?: boolean
         }
         Relationships: []
       }

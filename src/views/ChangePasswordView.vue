@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { changePassword, profile, session } from '../stores/auth'
+import { changePassword, debeCambiarClave, profile, session } from '../stores/auth'
 import { esAdmin } from '../stores/vista'
 import { initials } from '../lib/format'
 import AppIcon from '../components/AppIcon.vue'
@@ -65,7 +65,15 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <PageHeader eyebrow="Mi cuenta" title="Cambiar contraseña" />
+  <PageHeader
+    :eyebrow="debeCambiarClave ? 'Antes de empezar' : 'Mi cuenta'"
+    :title="debeCambiarClave ? 'Ponte tu contraseña' : 'Cambiar contraseña'"
+    :subtitle="
+      debeCambiarClave
+        ? 'Estás usando la contraseña que te dio el administrador. Cámbiala por una tuya y entrarás en la app.'
+        : undefined
+    "
+  />
 
   <div class="cuenta">
     <!-- ---------- Ficha del usuario ---------- -->

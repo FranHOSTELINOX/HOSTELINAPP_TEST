@@ -15,6 +15,7 @@ se registra en Supabase Auth (`handle_new_user`).
 | full_name  | opcional                                  |
 | role       | `admin` o `user` (por defecto `user`)     |
 | puesto     | texto libre, p. ej. "Recepción" (opcional)|
+| must_change_password | true = sigue con la contraseña que le dio el admin |
 
 **Quién ve/edita qué**: cada persona ve y edita su propia fila; el admin ve y
 edita todas. Un trigger (`prevent_role_escalation`) impide que alguien
@@ -24,6 +25,21 @@ directa a la base de datos, como la que usan las migraciones, no cuenta como
 
 **Importante**: nadie es `admin` por defecto, ni siquiera el primer usuario.
 Hay que ponerlo a mano la primera vez (ver `docs/supabase.md`).
+
+**Estrenar contraseña** (migración `0007`): quien se da de alta empieza con
+`must_change_password = true`, y mientras lo tenga el router no le deja salir
+de `/cambiar-contrasena`. Se le quita solo al cambiarla, y `admin-set-password`
+se lo vuelve a poner cuando el admin le resetea una. En la lista del equipo
+sale marcado con una pastilla "Sin estrenar".
+
+Es un cauce, no un cerrojo: la marca vive en su propia fila y su política de
+update le deja tocarla —hace falta, para poder quitársela él al cambiarla—.
+Sirve para que nadie se quede con la contraseña del alta por dejadez, no para
+frenar a quien quiera saltárselo a propósito desde la API.
+
+**Las contraseñas no se pueden consultar**, ni siquiera siendo admin: no están
+en estas tablas, sino en `auth.users` de Supabase y guardadas como un resumen
+irreversible (bcrypt). Lo que se puede es ponerle una nueva a alguien.
 
 **Contraseñas perdidas**: el admin le pone una nueva desde la propia app
 (Administración → Equipo → editar a esa persona → "Si ha perdido su

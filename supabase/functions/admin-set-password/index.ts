@@ -93,6 +93,18 @@ Deno.serve(async (req) => {
       return json({ error: updateError.message }, 400)
     }
 
+    // La que acaba de poner el administrador la han visto dos personas, así
+    // que vuelve a marcarse como "prestada": la app le obligará a estrenar
+    // una suya en cuanto entre.
+    const { error: marcaError } = await adminClient
+      .from('profiles')
+      .update({ must_change_password: true })
+      .eq('id', userId)
+
+    if (marcaError) {
+      return json({ error: marcaError.message }, 500)
+    }
+
     return json({ ok: true, email: destino.email })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Error inesperado' }, 500)

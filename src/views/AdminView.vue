@@ -736,6 +736,14 @@ onMounted(async () => {
           </span>
           <span v-if="u.puesto" class="pill pill-plain">{{ u.puesto }}</span>
           <span v-if="u.role === 'admin'" class="pill pill-accent">Admin</span>
+          <!-- Así se ve de un vistazo quién sigue con la contraseña del alta. -->
+          <span
+            v-if="u.must_change_password"
+            class="pill pill-warn"
+            title="Todavía usa la contraseña que le diste; la app le obligará a cambiarla al entrar"
+          >
+            Sin estrenar
+          </span>
           <span class="acciones">
             <button
               type="button"

@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { Database, Role } from '../lib/database.types'
@@ -11,6 +11,12 @@ export const session = ref<Session | null>(null)
 export const role = ref<Role | null>(null)
 export const profile = ref<Profile | null>(null)
 export const authReady = ref(false)
+
+/**
+ * ¿Sigue usando la contraseña que le dio el administrador? Mientras sea que
+ * sí, el router no le deja salir de la pantalla de cambiarla.
+ */
+export const debeCambiarClave = computed(() => profile.value?.must_change_password === true)
 
 async function loadProfileRole(userId: string) {
   const { data, error } = await supabase
@@ -71,4 +77,12 @@ export async function changePassword(currentPassword: string, newPassword: strin
 
   const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
   if (updateError) throw updateError
+
+  // Ya no usa la que le dieron: se le quita la marca y se refresca el perfil
+  // para que el router le deje salir de esta pantalla sin recargar.
+  const id = session.value?.user.id
+  if (id) {
+    await supabase.from('profiles').update({ must_change_password: false }).eq('id', id)
+    await loadProfileRole(id)
+  }
 }

@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { authReady, session } from '../stores/auth'
+import { authReady, debeCambiarClave, session } from '../stores/auth'
 import { esAdmin } from '../stores/vista'
 
 const router = createRouter({
@@ -77,6 +77,11 @@ router.beforeEach(async (to) => {
   }
   if (to.name === 'login' && session.value) {
     return { name: 'tiempos' }
+  }
+  // Quien todavía usa la contraseña que le dio el administrador no pasa de
+  // la pantalla de cambiarla. Es lo primero que hace al entrar.
+  if (session.value && debeCambiarClave.value && to.name !== 'cambiar-contrasena') {
+    return { name: 'cambiar-contrasena' }
   }
   return true
 })

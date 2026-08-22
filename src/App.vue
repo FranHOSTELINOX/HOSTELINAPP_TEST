@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { profile, session, signOut } from './stores/auth'
+import { debeCambiarClave, profile, session, signOut } from './stores/auth'
 import { alternarVista, esAdmin, puedeCambiarVista, verComoUsuario } from './stores/vista'
 import { initials } from './lib/format'
 import AppIcon from './components/AppIcon.vue'
@@ -49,7 +49,11 @@ const navItems: NavItem[] = [
 ]
 
 const visibleNav = computed(() =>
-  navItems
+  // Mientras tenga que estrenar contraseña no hay a dónde ir: se le quitan
+  // las secciones para que no pulse y el router le devuelva una y otra vez.
+  debeCambiarClave.value
+    ? []
+    : navItems
     .filter((item) => !item.admin || esAdmin.value)
     .map((item) =>
       esAdmin.value
