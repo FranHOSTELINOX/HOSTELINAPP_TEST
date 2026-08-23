@@ -55,6 +55,15 @@ const parte = ref({
 /** Solo el administrador puede imputar horas sin decir a qué producto. */
 const requiereProducto = computed(() => !esAdmin.value)
 
+/**
+ * ¿Se está enseñando el parte de horas? Los avisos van pegados a su botón,
+ * así que cuando no hay parte —cargando, o sin catálogo todavía— tienen que
+ * salir arriba o no se verían.
+ */
+const hayParte = computed(
+  () => !loading.value && !(proyectosActivos.value.length === 0 && requiereProducto.value),
+)
+
 const proyectosActivos = computed(() => projects.value.filter((p) => p.active))
 
 const productosDelProyecto = computed(() =>
@@ -299,8 +308,8 @@ onMounted(async () => {
     </template>
   </PageHeader>
 
-  <AlertMessage v-if="error" kind="error" class="mb">{{ error }}</AlertMessage>
-  <AlertMessage v-if="message" kind="success" class="mb">{{ message }}</AlertMessage>
+  <AlertMessage v-if="error && !hayParte" kind="error" class="mb">{{ error }}</AlertMessage>
+  <AlertMessage v-if="message && !hayParte" kind="success" class="mb">{{ message }}</AlertMessage>
 
   <LoadingList v-if="loading" :rows="3" />
 
@@ -430,6 +439,14 @@ onMounted(async () => {
           </form>
         </div>
       </section>
+
+      <!-- El resultado de guardar, justo debajo del botón que se acaba de
+           pulsar: puesto arriba del todo se quedaba fuera de la vista en el
+           móvil, con el formulario entero por medio. -->
+      <AlertMessage v-if="error" kind="error" class="aviso-parte">{{ error }}</AlertMessage>
+      <AlertMessage v-if="message" kind="success" class="aviso-parte">
+        {{ message }}
+      </AlertMessage>
 
       <!-- ---------- Restos del cronómetro de antes ---------- -->
       <section v-if="abiertas.length > 0" class="panel sin-cerrar">
@@ -570,6 +587,12 @@ onMounted(async () => {
 
 /* ---------------- El parte ---------------- */
 .parte {
+  margin-bottom: 1.125rem;
+}
+
+/* Va justo debajo del parte, así que se pega a él por arriba. */
+.aviso-parte {
+  margin-top: -0.375rem;
   margin-bottom: 1.125rem;
 }
 
