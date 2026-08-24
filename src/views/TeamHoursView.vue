@@ -15,6 +15,7 @@ import { session } from '../stores/auth'
 import { esAdmin } from '../stores/vista'
 import type { Database } from '../lib/database.types'
 import { etiquetaProyecto, formatDate, formatDuration, formatTime, initials } from '../lib/format'
+import { nombreTipo } from '../lib/ausencias'
 import { minutosPrevistosEnRango } from '../lib/horario'
 import AppIcon from '../components/AppIcon.vue'
 import AlertMessage from '../components/AlertMessage.vue'
@@ -125,6 +126,9 @@ function claveDe(e: TimeEntry): { id: string; nombre: string } {
   if (agruparPor.value === 'persona') {
     return { id: e.user_id, nombre: nombreUsuario(e.user_id) }
   }
+  if (e.tipo !== 'trabajo') {
+    return { id: e.tipo, nombre: nombreTipo(e.tipo) }
+  }
   if (agruparPor.value === 'producto') {
     const prod = products.value.find((p) => p.id === e.product_id)
     return {
@@ -139,6 +143,7 @@ function claveDe(e: TimeEntry): { id: string; nombre: string } {
 /** Cómo se desglosa por dentro cada grupo (la otra dimensión). */
 function subclaveDe(e: TimeEntry): string {
   if (agruparPor.value === 'persona') {
+    if (e.tipo !== 'trabajo') return nombreTipo(e.tipo)
     return e.product_id
       ? `${nombreProyecto(e.product_id)} · ${nombreProducto(e.product_id)}`
       : 'Sin producto'
@@ -147,6 +152,7 @@ function subclaveDe(e: TimeEntry): string {
   // ya por producto no queda nada por desglosar, así que solo quedan los
   // registros sueltos.
   if (!esAdmin.value) {
+    if (e.tipo !== 'trabajo') return ''
     return agruparPor.value === 'proyecto' ? nombreProducto(e.product_id) : ''
   }
   return nombreUsuario(e.user_id)

@@ -3,6 +3,13 @@
 // nuevo con `supabase gen types typescript` si usas la CLI de Supabase).
 
 export type Role = 'admin' | 'user'
+
+/**
+ * Qué es un rato apuntado. Una baja y un permiso ocupan la jornada igual que
+ * el trabajo, por eso viven en la misma tabla: así no se puede estar de baja
+ * y en el taller a la vez.
+ */
+export type TipoRato = 'trabajo' | 'baja' | 'permiso'
 export type TaskStatus = 'pending' | 'in_progress' | 'done'
 
 export interface Database {
@@ -119,6 +126,7 @@ export interface Database {
           task_id: string | null
           product_id: string | null
           user_id: string
+          tipo: TipoRato
           started_at: string
           ended_at: string | null
           notes: string | null
@@ -129,6 +137,7 @@ export interface Database {
           task_id?: string | null
           product_id?: string | null
           user_id: string
+          tipo?: TipoRato
           started_at?: string
           ended_at?: string | null
           notes?: string | null

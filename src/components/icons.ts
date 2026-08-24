@@ -34,6 +34,10 @@ export const iconPaths = {
   abajo: 'm6 9 6 6 6-6',
   barras: 'M3 21h18M7 21V11M12 21V4M17 21v-6',
   // Un ojo: "así se ve esto desde fuera"
+  // Un botiquín: la cruz de la baja médica
+  botiquin: 'M4 8h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z M9 8V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3 M12 11.5v5 M9.5 14h5',
+  // Un documento con el visto bueno: el permiso concedido
+  permiso: 'M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z M14 3v4h4 M8.5 15l2 2 4-4',
   ojo: 'M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z',
   editar: 'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z',
   borrar:

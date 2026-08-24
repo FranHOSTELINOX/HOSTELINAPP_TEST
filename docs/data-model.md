@@ -113,6 +113,7 @@ Las horas que imputa cada trabajador.
 
 | columna    | qué es                                     |
 |------------|----------------------------------------------|
+| tipo       | `trabajo`, `baja` o `permiso`                |
 | product_id | producto al que se imputan las horas         |
 | task_id    | resto de cuando había tareas; ya no se usa   |
 | user_id    | quién registró el tiempo                     |
@@ -151,6 +152,25 @@ existían antes de esta pantalla.
 y parar; se quitó a propósito. Los registros que quedaran abiertos de
 entonces (`ended_at` a null) no cuentan para los totales y la pantalla los
 saca aparte para poder borrarlos.
+
+**Bajas y permisos viven aquí también** (migración `0009`). Una baja laboral y
+un permiso retribuido ocupan la jornada igual que el trabajo, así que no van en
+una tabla aparte: son filas de `time_entries` con `tipo` distinto de
+`'trabajo'`. Sale gratis lo importante: el trigger de solapes impide estar de
+baja y en el taller a la vez, las horas del equipo se reparten entre los tres
+tipos sin cruzar tablas, y las políticas RLS valen tal cual.
+
+Una ausencia nunca lleva producto, y eso lo garantiza la restricción
+`time_entries_ausencia_sin_producto`, no solo la interfaz.
+
+Cada tipo tiene su pantalla (`/baja` y `/permiso`, el mismo componente
+`AusenciasView.vue` con la ficha de `src/lib/ausencias.ts`). Una baja de varios
+días se guarda como **un rato por tramo de jornada**: de lunes a miércoles son
+seis filas, no una, porque así las horas cuadran sin contar el rato de la
+comida. Los domingos y lo que no sea laborable se saltan solos.
+
+`/tiempos` enseña solo el trabajo, pero se trae los tres tipos para poder
+avisar de los solapes.
 
 **Nadie está en dos sitios a la vez**: dos ratos de la misma persona no
 pueden pisarse (migración `0008`). Lo impide un trigger,

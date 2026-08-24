@@ -7,6 +7,7 @@ import { initials } from './lib/format'
 import AppIcon from './components/AppIcon.vue'
 import BrandLogo from './components/BrandLogo.vue'
 import type { IconName } from './components/icons'
+import { AUSENCIAS } from './lib/ausencias'
 
 const route = useRoute()
 const router = useRouter()
@@ -36,6 +37,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { to: '/tiempos', label: 'Tiempos', short: 'Tiempos', icon: 'reloj' },
   { to: '/calendario', label: 'Calendario', short: 'Agenda', icon: 'calendario', admin: true },
+  ...AUSENCIAS.map((a) => ({ to: a.ruta, label: a.titulo, short: a.corto, icon: a.icono })),
   { to: '/avisos', label: 'Avisos', short: 'Avisos', icon: 'avisos' },
   {
     to: '/horas',

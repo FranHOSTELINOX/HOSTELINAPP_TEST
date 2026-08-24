@@ -77,12 +77,13 @@ src/
   lib/database.types.ts  tipos TS a mano que reflejan el esquema SQL
   lib/format.ts           utilidades pequeñas (con test)
   lib/horario.ts          el horario del taller y sus cuentas (con test)
+  lib/ausencias.ts        las fichas de baja y permiso (textos e icono)
   stores/auth.ts          estado de sesión/rol/perfil, sin Pinia (app pequeña)
   stores/vista.ts         "ver como usuario": el esAdmin que manda en la interfaz
   stores/theme.ts         claro/oscuro, que lo decide el sistema del usuario
   router/index.ts         rutas + guardas por sesión/rol
   views/                  una vista por pantalla (Login, TimeEntries,
-                           Calendar, Notices, TeamHours, Admin,
+                           Ausencias, Calendar, Notices, TeamHours, Admin,
                            ChangePassword)
 supabase/migrations/      SQL versionado, en orden (0001_, 0002_, ...)
 supabase/functions/       Edge Functions (una carpeta por función)

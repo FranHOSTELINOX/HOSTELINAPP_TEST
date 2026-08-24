@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { supabase } from '../lib/supabase'
 import { session } from '../stores/auth'
 import { esAdmin } from '../stores/vista'
+import { nombreTipo } from '../lib/ausencias'
 import type { Database } from '../lib/database.types'
 import {
   daysFromToday,
@@ -125,6 +126,8 @@ const horarioDeHoy = computed(() => describeHorario(new Date()))
 const previstoHoy = computed(() => minutosPrevistos(new Date()) * 60_000)
 
 const cerradas = computed(() => entries.value.filter((e) => e.ended_at))
+/** Solo el taller: lo que se lista y se suma en esta pantalla. */
+const deTaller = computed(() => cerradas.value.filter((e) => e.tipo === 'trabajo'))
 
 /**
  * Registro que ha pedido borrarse y está esperando confirmación. Se confirma
@@ -162,13 +165,13 @@ function etiquetaProducto(productId: string | null): string {
 }
 
 const totalHoy = computed(() =>
-  cerradas.value
+  deTaller.value
     .filter((e) => daysFromToday(e.started_at) === 0)
     .reduce((suma, e) => suma + entryDuration(e.started_at, e.ended_at as string), 0),
 )
 
 const totalSemana = computed(() =>
-  cerradas.value
+  deTaller.value
     .filter((e) => daysFromToday(e.started_at) > -7)
     .reduce((suma, e) => suma + entryDuration(e.started_at, e.ended_at as string), 0),
 )
@@ -176,7 +179,7 @@ const totalSemana = computed(() =>
 /** Los registros, agrupados por día para que la lista se lea mejor. */
 const porDia = computed(() => {
   const grupos = new Map<string, { etiqueta: string; total: number; items: TimeEntry[] }>()
-  for (const entry of cerradas.value) {
+  for (const entry of deTaller.value) {
     const fecha = new Date(entry.started_at)
     const clave = `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}`
     const dias = daysFromToday(entry.started_at)
@@ -209,6 +212,9 @@ async function loadEntries() {
     .select('*')
     .eq('user_id', session.value?.user.id ?? '')
     .order('started_at', { ascending: false })
+  // Se piden TODOS los ratos (trabajo, bajas y permisos) porque el aviso de
+  // solapes tiene que mirarlos todos: estando de baja tampoco se trabaja.
+  // Lo que se ENSEÑA aquí es solo el taller; las ausencias tienen su pantalla.
 
   if (fetchError) error.value = fetchError.message
   else entries.value = data ?? []
@@ -241,10 +247,14 @@ async function guardar() {
     return eIni < fin.getTime() && inicio.getTime() < eFin
   })
   if (choque) {
+    const donde =
+      choque.tipo === 'trabajo'
+        ? `en ${etiquetaProducto(choque.product_id)}`
+        : `como ${nombreTipo(choque.tipo).toLowerCase()}`
     error.value =
       `Ese rato se pisa con lo que ya tienes apuntado de ` +
       `${formatTime(choque.started_at)} a ${formatTime(choque.ended_at as string)} ` +
-      `en ${etiquetaProducto(choque.product_id)}. No se puede estar en dos productos a la vez.`
+      `${donde}. No se puede estar en dos sitios a la vez.`
     return
   }
 
@@ -499,7 +509,7 @@ onMounted(async () => {
       </section>
 
       <!-- ---------- Totales ---------- -->
-      <section v-if="cerradas.length > 0" class="totales">
+      <section v-if="deTaller.length > 0" class="totales">
         <div class="panel total">
           <span class="cifra-eti">Hoy</span>
           <span class="total-num mono">{{ formatDuration(totalHoy) }}</span>
@@ -513,13 +523,13 @@ onMounted(async () => {
         </div>
         <div class="panel total">
           <span class="cifra-eti">Registros</span>
-          <span class="total-num mono">{{ cerradas.length }}</span>
+          <span class="total-num mono">{{ deTaller.length }}</span>
         </div>
       </section>
 
       <!-- ---------- Historial ---------- -->
       <EmptyState
-        v-if="cerradas.length === 0"
+        v-if="deTaller.length === 0"
         icon="reloj"
         title="Todavía no has apuntado ninguna hora"
         text="Rellena el parte de arriba y las verás aquí, agrupadas por día."

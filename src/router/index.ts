@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { authReady, debeCambiarClave, session } from '../stores/auth'
 import { esAdmin } from '../stores/vista'
+import { AUSENCIAS } from '../lib/ausencias'
 
 const router = createRouter({
   // Modo hash (URLs tipo /#/tiempos) porque GitHub Pages no sabe redirigir
@@ -21,6 +22,14 @@ const router = createRouter({
       component: () => import('../views/CalendarView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
+    // Baja laboral y permiso retribuido: la misma pantalla, con la etiqueta
+    // que le toca a cada una en meta.tipoAusencia.
+    ...AUSENCIAS.map((a) => ({
+      path: a.ruta,
+      name: a.tipo,
+      component: () => import('../views/AusenciasView.vue'),
+      meta: { requiresAuth: true, tipoAusencia: a.tipo },
+    })),
     {
       path: '/avisos',
       name: 'avisos',
