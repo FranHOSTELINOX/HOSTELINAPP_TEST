@@ -164,10 +164,19 @@ Una ausencia nunca lleva producto, y eso lo garantiza la restricción
 `time_entries_ausencia_sin_producto`, no solo la interfaz.
 
 Cada tipo tiene su pantalla (`/baja` y `/permiso`, el mismo componente
-`AusenciasView.vue` con la ficha de `src/lib/ausencias.ts`). Una baja de varios
-días se guarda como **un rato por tramo de jornada**: de lunes a miércoles son
-seis filas, no una, porque así las horas cuadran sin contar el rato de la
-comida. Los domingos y lo que no sea laborable se saltan solos.
+`AusenciasView.vue` con la ficha de `src/lib/ausencias.ts`).
+
+**Una ausencia se mide con la jornada de convenio, no con el horario del
+taller** (migración `0010`): 8 h al día y 40 a la semana. Un día completo son
+8 h seguidas desde la hora de entrada (06:30–14:30), que caben en el tramo de
+mañana y no pisan el rato de la comida. Como 5 × 8 son las 40 h justas, la
+semana de ausencia va **de lunes a viernes**: un sábado no genera horas de baja
+ni de permiso, aunque en el taller se trabaje.
+
+**Los topes son conjuntos, no uno por tipo**: nadie puede estar ausente más de
+lo que dura su jornada, dé igual que sea media mañana de baja y media de
+permiso. Lo sujeta el trigger `time_entries_tope_ausencia`, y la pantalla lo
+avisa antes con palabras. Las horas de taller no entran en esa cuenta.
 
 `/tiempos` enseña solo el trabajo, pero se trae los tres tipos para poder
 avisar de los solapes.

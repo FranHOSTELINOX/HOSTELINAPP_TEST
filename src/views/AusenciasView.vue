@@ -13,8 +13,14 @@ import { session } from '../stores/auth'
 import { esAdmin } from '../stores/vista'
 import type { Database } from '../lib/database.types'
 import { formatDate, formatDuration, formatTime } from '../lib/format'
-import { describeHorario, franjasDelDia, tramosDelDia } from '../lib/horario'
-import { ausenciaDe } from '../lib/ausencias'
+import { describeHorario, franjasDelDia } from '../lib/horario'
+import {
+  HORAS_AUSENCIA_DIA,
+  HORAS_AUSENCIA_SEMANA,
+  ausenciaDe,
+  jornadaDeAusencia,
+  lunesDe,
+} from '../lib/ausencias'
 import AppIcon from '../components/AppIcon.vue'
 import AlertMessage from '../components/AlertMessage.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -26,7 +32,10 @@ type TimeEntry = Database['public']['Tables']['time_entries']['Row']
 const route = useRoute()
 const ficha = computed(() => ausenciaDe(String(route.meta.tipoAusencia))!)
 
-const entries = ref<TimeEntry[]>([])
+/** Las ausencias de los dos tipos: el tope diario y el semanal son conjuntos. */
+const ausencias = ref<TimeEntry[]>([])
+/** Las de esta pantalla, que son las que se listan. */
+const entries = computed(() => ausencias.value.filter((e) => e.tipo === ficha.value.tipo))
 const loading = ref(true)
 const error = ref('')
 const message = ref('')
@@ -77,34 +86,31 @@ const franjasHasta = computed(() =>
     .map((f) => ({ ...f, horas: f.horas.filter((h) => h > parte.value.desdeHora) }))
     .filter((f) => f.horas.length > 0),
 )
-const esFestivo = computed(() => tramosDelDia(diaElegido.value).length === 0)
+const esFestivo = computed(() => jornadaDeAusencia(diaElegido.value) === null)
 const horarioDelDia = computed(() => describeHorario(diaElegido.value))
 
-/** Los días laborables del rango elegido, con sus tramos de jornada. */
+/**
+ * Las jornadas del rango elegido: una por día, de 8 h, de lunes a viernes.
+ * Una ausencia se mide con la jornada de convenio y no con el horario del
+ * taller, así que el sábado no genera horas aunque en el taller se trabaje.
+ */
 const jornadasDelRango = computed(() => {
   const salida: { dia: Date; desde: Date; hasta: Date }[] = []
   const fin = new Date(`${parte.value.hastaDia}T00:00`)
   const cursor = new Date(`${parte.value.desdeDia}T00:00`)
-  // Un tope por si alguien escribe un año a mano: no tiene sentido apuntar
-  // más de un año seguido, y evita quedarse dando vueltas.
+  // Un tope por si alguien escribe un año a mano: evita quedarse dando
+  // vueltas si las fechas vienen disparatadas.
   let vueltas = 0
   while (cursor <= fin && vueltas < 400) {
-    for (const tramo of tramosDelDia(cursor)) {
-      const desde = new Date(cursor)
-      desde.setHours(0, tramo.desde, 0, 0)
-      const hasta = new Date(cursor)
-      hasta.setHours(0, tramo.hasta, 0, 0)
-      salida.push({ dia: new Date(cursor), desde, hasta })
-    }
+    const jornada = jornadaDeAusencia(cursor)
+    if (jornada) salida.push({ dia: new Date(cursor), ...jornada })
     cursor.setDate(cursor.getDate() + 1)
     vueltas += 1
   }
   return salida
 })
 
-const diasLaborables = computed(
-  () => new Set(jornadasDelRango.value.map((j) => j.dia.toDateString())).size,
-)
+const diasLaborables = computed(() => jornadasDelRango.value.length)
 const totalPrevisto = computed(() =>
   jornadasDelRango.value.reduce((s, j) => s + (j.hasta.getTime() - j.desde.getTime()), 0),
 )
@@ -143,11 +149,56 @@ async function cargar() {
     .from('time_entries')
     .select('*')
     .eq('user_id', session.value?.user.id ?? '')
-    .eq('tipo', ficha.value.tipo)
+    .neq('tipo', 'trabajo')
     .order('started_at', { ascending: false })
   if (e) error.value = e.message
-  else entries.value = data ?? []
+  else ausencias.value = data ?? []
   loading.value = false
+}
+
+const duracionMs = (e: { started_at: string; ended_at: string | null }) =>
+  new Date(e.ended_at as string).getTime() - new Date(e.started_at).getTime()
+
+const HORA_MS = 60 * 60 * 1000
+
+/**
+ * ¿Lo que se va a apuntar deja algún día por encima de 8 h o alguna semana
+ * por encima de 40, contando lo que ya hay? Devuelve el aviso o null.
+ *
+ * Cuenta las dos ausencias juntas: nadie puede estar ausente más de lo que
+ * dura su jornada, dé igual que sea media mañana de baja y media de permiso.
+ * La base de datos lo impide igualmente; esto es para decirlo antes y con
+ * palabras, en vez de soltar el error de Postgres.
+ */
+function excedeTope(ratos: { started_at: string; ended_at: string }[]): string | null {
+  const porDia = new Map<string, number>()
+  const porSemana = new Map<string, number>()
+
+  const anota = (inicio: Date, ms: number) => {
+    const d = inicio.toDateString()
+    const s = lunesDe(inicio).toDateString()
+    porDia.set(d, (porDia.get(d) ?? 0) + ms)
+    porSemana.set(s, (porSemana.get(s) ?? 0) + ms)
+  }
+
+  for (const e of ausencias.value) {
+    if (e.ended_at) anota(new Date(e.started_at), duracionMs(e))
+  }
+  for (const r of ratos) {
+    anota(new Date(r.started_at), duracionMs(r))
+  }
+
+  for (const [clave, ms] of porDia) {
+    if (ms > HORAS_AUSENCIA_DIA * HORA_MS) {
+      return `El ${formatDate(new Date(clave).toISOString())} te saldrían ${formatDuration(ms)} entre bajas y permisos, y un día no puede pasar de ${HORAS_AUSENCIA_DIA} h.`
+    }
+  }
+  for (const [clave, ms] of porSemana) {
+    if (ms > HORAS_AUSENCIA_SEMANA * HORA_MS) {
+      return `La semana del ${formatDate(new Date(clave).toISOString())} te saldrían ${formatDuration(ms)} entre bajas y permisos, y una semana no puede pasar de ${HORAS_AUSENCIA_SEMANA} h.`
+    }
+  }
+  return null
 }
 
 async function guardar() {
@@ -163,7 +214,8 @@ async function guardar() {
       return
     }
     if (jornadasDelRango.value.length === 0) {
-      error.value = 'En esos días no se trabaja, así que no hay nada que apuntar.'
+      error.value =
+        'En esos días no hay nada que apuntar: las ausencias se cuentan de lunes a viernes.'
       return
     }
     ratos = jornadasDelRango.value.map((j) => ({
@@ -184,6 +236,12 @@ async function guardar() {
     ratos = [{ started_at: inicio.toISOString(), ended_at: fin.toISOString() }]
   }
 
+  const pasado = excedeTope(ratos)
+  if (pasado) {
+    error.value = pasado
+    return
+  }
+
   guardando.value = true
   const { error: e } = await supabase.from('time_entries').insert(
     ratos.map((r) => ({
@@ -198,7 +256,7 @@ async function guardar() {
 
   if (e) {
     // El trigger de solapes habla en cristiano; el resto de errores, no tanto.
-    error.value = /solape|apuntadas/i.test(e.message)
+    error.value = /solape|apuntadas|no puede tener más/i.test(e.message)
       ? e.message
       : `No se pudo apuntar: ${e.message}`
     return
@@ -299,7 +357,9 @@ onMounted(cargar)
                   class="select"
                   :disabled="esFestivo"
                 >
-                  <option value="">{{ esFestivo ? 'Ese día no se trabaja' : 'Hora…' }}</option>
+                  <option value="">
+                    {{ esFestivo ? 'Sábados y domingos no cuentan' : 'Hora…' }}
+                  </option>
                   <optgroup v-for="f in franjas" :key="f.etiqueta" :label="f.etiqueta">
                     <option v-for="h in f.horas" :key="h" :value="h">{{ h }}</option>
                   </optgroup>
@@ -339,6 +399,11 @@ onMounted(cargar)
             <AppIcon name="reloj" :size="13" />
             Ese día se trabaja de {{ horarioDelDia }}
           </p>
+          <p v-if="parte.jornadaCompleta" class="small dim horario">
+            <AppIcon name="reloj" :size="13" />
+            Un día completo son {{ HORAS_AUSENCIA_DIA }} h, y la semana no pasa de
+            {{ HORAS_AUSENCIA_SEMANA }} h
+          </p>
 
           <div class="form-actions">
             <button
@@ -355,7 +420,7 @@ onMounted(cargar)
               · <strong>{{ formatDuration(totalPrevisto) }}</strong>
             </span>
             <span v-else-if="parte.jornadaCompleta" class="resumen dim">
-              En esos días no se trabaja
+              Ahí no hay días que contar: las ausencias van de lunes a viernes
             </span>
           </div>
         </form>
