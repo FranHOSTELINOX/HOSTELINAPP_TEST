@@ -27,21 +27,32 @@ describe('jornadaDeAusencia', () => {
     expect(`${j.hasta.getHours()}:${String(j.hasta.getMinutes()).padStart(2, '0')}`).toBe('14:30')
   })
 
-  it('el sábado no cuenta, aunque en el taller se trabaje', () => {
-    expect(jornadaDeAusencia(dia(5))).toBeNull()
+  it('el sábado también son ocho, aunque en el taller sea media jornada', () => {
+    const j = jornadaDeAusencia(dia(5))!
+    expect(j.hasta.getTime() - j.desde.getTime()).toBe(HORAS_AUSENCIA_DIA * HORA)
   })
 
-  it('el domingo tampoco', () => {
+  it('el domingo no cuenta: no hay jornada de la que faltar', () => {
     expect(jornadaDeAusencia(dia(6))).toBeNull()
   })
 
-  it('una semana entera son las cuarenta horas de convenio', () => {
+  it('de lunes a viernes salen las cuarenta horas del tope semanal', () => {
     let total = 0
-    for (let n = 0; n < 7; n += 1) {
-      const j = jornadaDeAusencia(dia(n))
-      if (j) total += j.hasta.getTime() - j.desde.getTime()
+    for (let n = 0; n < 5; n += 1) {
+      const j = jornadaDeAusencia(dia(n))!
+      total += j.hasta.getTime() - j.desde.getTime()
     }
     expect(total).toBe(HORAS_AUSENCIA_SEMANA * HORA)
+  })
+
+  it('y de lunes a sábado se pasan del tope, que es lo que la app rechaza', () => {
+    let total = 0
+    for (let n = 0; n < 6; n += 1) {
+      const j = jornadaDeAusencia(dia(n))!
+      total += j.hasta.getTime() - j.desde.getTime()
+    }
+    expect(total).toBe(48 * HORA)
+    expect(total).toBeGreaterThan(HORAS_AUSENCIA_SEMANA * HORA)
   })
 })
 

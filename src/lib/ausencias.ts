@@ -8,8 +8,15 @@ import type { IconName } from '../components/icons'
 // jornada de convenio: 8 horas al día y 40 a la semana. Por eso un día de
 // baja son 8 h y no las 10 h 30 que se está en el taller de lunes a viernes.
 //
-// 5 días × 8 h dan las 40 h justas, así que la semana de ausencia va de
-// lunes a viernes: un sábado no genera horas de baja ni de permiso.
+// Un día apuntado vale SIEMPRE 8 h, sea el que sea: también el sábado, que
+// en el taller es media jornada. Lo único que no cuenta es el domingo,
+// porque no hay jornada de la que faltar.
+//
+// Ojo a cómo se lleva eso con el tope semanal de 40 h: de lunes a viernes
+// salen las 40 justas, así que una semana admite cinco días apuntados. Si se
+// apunta también el sábado, el sexto día se pasa del tope y la app lo
+// rechaza. Para que quepa una semana entera de lunes a sábado habría que
+// subir HORAS_AUSENCIA_SEMANA a 48.
 
 /** Horas de una jornada de ausencia. */
 export const HORAS_AUSENCIA_DIA = 8
@@ -20,13 +27,15 @@ export const HORAS_AUSENCIA_SEMANA = 40
 const ENTRADA = 6 * 60 + 30
 
 /**
- * El rato que ocupa un día completo de ausencia, o null si ese día no cuenta
- * (sábados, domingos). Son 8 horas seguidas desde la hora de entrada, así que
- * caben enteras en el tramo de mañana y no pisan el rato de la comida.
+ * El rato que ocupa un día completo de ausencia, o null si ese día no cuenta.
+ * Son 8 horas seguidas desde la hora de entrada, así que caben enteras en el
+ * tramo de mañana y no pisan el rato de la comida.
+ *
+ * Vale igual para el sábado: un día apuntado son 8 h, aunque en el taller ese
+ * día se salga a las 11:30. Solo el domingo se queda fuera.
  */
 export function jornadaDeAusencia(dia: Date): { desde: Date; hasta: Date } | null {
-  const finde = dia.getDay() === 0 || dia.getDay() === 6
-  if (finde) return null
+  if (dia.getDay() === 0) return null
   const desde = new Date(dia)
   desde.setHours(0, ENTRADA, 0, 0)
   const hasta = new Date(desde)

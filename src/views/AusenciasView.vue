@@ -90,9 +90,9 @@ const esFestivo = computed(() => jornadaDeAusencia(diaElegido.value) === null)
 const horarioDelDia = computed(() => describeHorario(diaElegido.value))
 
 /**
- * Las jornadas del rango elegido: una por día, de 8 h, de lunes a viernes.
- * Una ausencia se mide con la jornada de convenio y no con el horario del
- * taller, así que el sábado no genera horas aunque en el taller se trabaje.
+ * Las jornadas del rango elegido: una por día, de 8 h. Un día apuntado vale
+ * siempre 8 h, también el sábado, que en el taller es media jornada. El
+ * domingo se queda fuera: no hay jornada de la que faltar.
  */
 const jornadasDelRango = computed(() => {
   const salida: { dia: Date; desde: Date; hasta: Date }[] = []
@@ -215,7 +215,7 @@ async function guardar() {
     }
     if (jornadasDelRango.value.length === 0) {
       error.value =
-        'En esos días no hay nada que apuntar: las ausencias se cuentan de lunes a viernes.'
+        'En esos días no hay nada que apuntar: en domingo no se apunta nada.'
       return
     }
     ratos = jornadasDelRango.value.map((j) => ({
@@ -358,7 +358,7 @@ onMounted(cargar)
                   :disabled="esFestivo"
                 >
                   <option value="">
-                    {{ esFestivo ? 'Sábados y domingos no cuentan' : 'Hora…' }}
+                    {{ esFestivo ? 'En domingo no se apunta nada' : 'Hora…' }}
                   </option>
                   <optgroup v-for="f in franjas" :key="f.etiqueta" :label="f.etiqueta">
                     <option v-for="h in f.horas" :key="h" :value="h">{{ h }}</option>
@@ -420,7 +420,7 @@ onMounted(cargar)
               · <strong>{{ formatDuration(totalPrevisto) }}</strong>
             </span>
             <span v-else-if="parte.jornadaCompleta" class="resumen dim">
-              Ahí no hay días que contar: las ausencias van de lunes a viernes
+              Ahí no hay días que contar: en domingo no se apunta nada
             </span>
           </div>
         </form>
