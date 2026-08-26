@@ -169,32 +169,43 @@ const HORA_MS = 60 * 60 * 1000
  * dura su jornada, dé igual que sea media mañana de baja y media de permiso.
  * La base de datos lo impide igualmente; esto es para decirlo antes y con
  * palabras, en vez de soltar el error de Postgres.
+ *
+ * Solo se miran los días y las semanas que toca lo que se va a apuntar. Si
+ * hubiera por ahí un día viejo pasado de horas, no es asunto de este parte:
+ * bloquearlo todo por eso dejaría a la persona sin poder apuntar nada nunca
+ * más. La base de datos hace lo mismo: solo mira el día y la semana que tocas.
  */
 function excedeTope(ratos: { started_at: string; ended_at: string }[]): string | null {
   const porDia = new Map<string, number>()
   const porSemana = new Map<string, number>()
+  const diasTocados = new Set<string>()
+  const semanasTocadas = new Set<string>()
 
-  const anota = (inicio: Date, ms: number) => {
+  const anota = (inicio: Date, ms: number, seToca: boolean) => {
     const d = inicio.toDateString()
     const s = lunesDe(inicio).toDateString()
     porDia.set(d, (porDia.get(d) ?? 0) + ms)
     porSemana.set(s, (porSemana.get(s) ?? 0) + ms)
+    if (seToca) {
+      diasTocados.add(d)
+      semanasTocadas.add(s)
+    }
   }
 
   for (const e of ausencias.value) {
-    if (e.ended_at) anota(new Date(e.started_at), duracionMs(e))
+    if (e.ended_at) anota(new Date(e.started_at), duracionMs(e), false)
   }
   for (const r of ratos) {
-    anota(new Date(r.started_at), duracionMs(r))
+    anota(new Date(r.started_at), duracionMs(r), true)
   }
 
   for (const [clave, ms] of porDia) {
-    if (ms > HORAS_AUSENCIA_DIA * HORA_MS) {
+    if (diasTocados.has(clave) && ms > HORAS_AUSENCIA_DIA * HORA_MS) {
       return `El ${formatDate(new Date(clave).toISOString())} te saldrían ${formatDuration(ms)} entre bajas y permisos, y un día no puede pasar de ${HORAS_AUSENCIA_DIA} h.`
     }
   }
   for (const [clave, ms] of porSemana) {
-    if (ms > HORAS_AUSENCIA_SEMANA * HORA_MS) {
+    if (semanasTocadas.has(clave) && ms > HORAS_AUSENCIA_SEMANA * HORA_MS) {
       return `La semana del ${formatDate(new Date(clave).toISOString())} te saldrían ${formatDuration(ms)} entre bajas y permisos, y una semana no puede pasar de ${HORAS_AUSENCIA_SEMANA} h.`
     }
   }

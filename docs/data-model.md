@@ -169,14 +169,22 @@ Cada tipo tiene su pantalla (`/baja` y `/permiso`, el mismo componente
 **Una ausencia se mide con la jornada de convenio, no con el horario del
 taller** (migración `0010`): 8 h al día y 40 a la semana. Un día completo son
 8 h seguidas desde la hora de entrada (06:30–14:30), que caben en el tramo de
-mañana y no pisan el rato de la comida. Como 5 × 8 son las 40 h justas, la
-semana de ausencia va **de lunes a viernes**: un sábado no genera horas de baja
-ni de permiso, aunque en el taller se trabaje.
+mañana y no pisan el rato de la comida. Un día apuntado vale siempre 8 h,
+también el sábado, que en el taller es media jornada; el único que se queda
+fuera es el domingo, porque no hay jornada de la que faltar. Como 5 × 8 son las
+40 h justas, en una semana entran cinco días: si se apunta también el sábado,
+el sexto se pasa del tope semanal y se rechaza.
 
 **Los topes son conjuntos, no uno por tipo**: nadie puede estar ausente más de
 lo que dura su jornada, dé igual que sea media mañana de baja y media de
 permiso. Lo sujeta el trigger `time_entries_tope_ausencia`, y la pantalla lo
 avisa antes con palabras. Las horas de taller no entran en esa cuenta.
+
+Tanto el trigger como el aviso de la pantalla miran **solo el día y la semana
+que se están tocando**, nunca el historial entero. Si no, un día viejo pasado
+de horas dejaría a esa persona sin poder apuntar nada nunca más. Los días que
+se apuntaron antes de que existiera el tope (los que salían con las 10 h 30 del
+taller) los dejó en 8 h la migración `0011`.
 
 `/tiempos` enseña solo el trabajo, pero se trae los tres tipos para poder
 avisar de los solapes.
