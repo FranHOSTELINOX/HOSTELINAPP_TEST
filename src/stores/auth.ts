@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { mensajeDeAuth } from '../lib/errores-auth'
 import type { Database, Role } from '../lib/database.types'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -56,7 +57,7 @@ export async function initAuth() {
 
 export async function signInWithEmail(email: string, password: string) {
   const { error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) throw error
+  if (error) throw new Error(mensajeDeAuth(error, 'No se pudo iniciar sesión.'))
 }
 
 export async function signOut() {
@@ -76,7 +77,9 @@ export async function changePassword(currentPassword: string, newPassword: strin
   if (reauthError) throw new Error('La contraseña actual no es correcta')
 
   const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-  if (updateError) throw updateError
+  // Supabase contesta en inglés ("New password should be different from the
+  // old password"), y esto lo lee gente del taller: se traduce antes de salir.
+  if (updateError) throw new Error(mensajeDeAuth(updateError, 'No se pudo cambiar la contraseña.'))
 
   // Ya no usa la que le dieron: se le quita la marca y se refresca el perfil
   // para que el router le deje salir de esta pantalla sin recargar.

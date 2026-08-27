@@ -48,6 +48,11 @@ async function handleSubmit() {
     error.value = 'Las dos contraseñas nuevas no coinciden.'
     return
   }
+  // Esto lo rechaza Supabase igualmente, pero decirlo aquí ahorra el viaje.
+  if (newPassword.value === currentPassword.value) {
+    error.value = 'La contraseña nueva tiene que ser distinta de la que usas ahora.'
+    return
+  }
 
   loading.value = true
   try {
@@ -57,7 +62,8 @@ async function handleSubmit() {
     newPassword.value = ''
     confirmPassword.value = ''
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'No se pudo cambiar la contraseña'
+    // Ya viene en español desde el store, que es donde se traduce.
+    error.value = err instanceof Error ? err.message : 'No se pudo cambiar la contraseña.'
   } finally {
     loading.value = false
   }
