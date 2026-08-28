@@ -35,7 +35,7 @@ const products = ref<Product[]>([])
 const loading = ref(true)
 const error = ref('')
 
-type Rango = 'semana' | 'mes' | 'mesPasado' | 'personalizado'
+type Rango = 'semana' | 'mes' | 'mesPasado' | 'todo' | 'personalizado'
 type Agrupacion = 'persona' | 'proyecto' | 'producto'
 
 const rango = ref<Rango>('semana')
@@ -49,6 +49,7 @@ const rangos: { id: Rango; etiqueta: string }[] = [
   { id: 'semana', etiqueta: 'Esta semana' },
   { id: 'mes', etiqueta: 'Este mes' },
   { id: 'mesPasado', etiqueta: 'Mes pasado' },
+  { id: 'todo', etiqueta: 'Todo el histórico' },
   { id: 'personalizado', etiqueta: 'Otras fechas' },
 ]
 
@@ -68,8 +69,18 @@ function lunesDe(d: Date): Date {
   return r
 }
 
-/** Las dos fechas del periodo elegido, como Date a medianoche. */
-const periodo = computed<{ desde: Date; hasta: Date }>(() => {
+/**
+ * Las dos fechas del periodo elegido, como Date a medianoche. En "Todo el
+ * histórico" no hay fecha de inicio: `desde` es null y la consulta sale sin
+ * tope por abajo, así que entra todo lo que haya desde el primer día que se
+ * usó la app. Poner ahí una fecha fija sería peor: el día que alguien apunte
+ * un rato más antiguo, se quedaría fuera sin que nadie se entere.
+ *
+ * Ojo: esto NO puede depender de los registros cargados. `cargar()` se dispara
+ * cuando cambia el periodo, así que si el periodo mirase los datos, cargarlos
+ * volvería a cambiarlo y no pararía nunca.
+ */
+const periodo = computed<{ desde: Date | null; hasta: Date }>(() => {
   const hoy = new Date()
   if (rango.value === 'semana') {
     return { desde: lunesDe(hoy), hasta: hoy }
@@ -83,6 +94,9 @@ const periodo = computed<{ desde: Date; hasta: Date }>(() => {
       hasta: new Date(hoy.getFullYear(), hoy.getMonth(), 0),
     }
   }
+  if (rango.value === 'todo') {
+    return { desde: null, hasta: hoy }
+  }
   // Personalizado: si falta alguna fecha, se cae al mes en curso.
   const d = desdeManual.value ? new Date(`${desdeManual.value}T00:00`) : null
   const h = hastaManual.value ? new Date(`${hastaManual.value}T00:00`) : null
@@ -90,14 +104,48 @@ const periodo = computed<{ desde: Date; hasta: Date }>(() => {
   return { desde: d, hasta: h }
 })
 
-const etiquetaPeriodo = computed(
-  () => `${formatDate(periodo.value.desde.toISOString())} – ${formatDate(periodo.value.hasta.toISOString())}`,
+/** El día del registro más antiguo de los que se han traído. */
+const primerDia = computed<Date | null>(() => {
+  let menor: number | null = null
+  for (const e of entries.value) {
+    const t = new Date(e.started_at).getTime()
+    if (menor === null || t < menor) menor = t
+  }
+  return menor === null ? null : new Date(menor)
+})
+
+/**
+ * El primer día del periodo del que se puede hablar. En "Todo el histórico"
+ * no lo marca el filtro sino el registro más antiguo que hay.
+ */
+const inicioReal = computed(() => periodo.value.desde ?? primerDia.value)
+
+const etiquetaPeriodo = computed(() => {
+  const fin = formatDate(periodo.value.hasta.toISOString())
+  const ini = inicioReal.value
+  if (!ini) return 'todo el histórico'
+  return `${formatDate(ini.toISOString())} – ${fin}`
+})
+
+/** Cómo se lee el periodo dentro de una frase, bajo el título. */
+const periodoEnFrase = computed(() =>
+  rango.value === 'todo'
+    ? inicioReal.value
+      ? `desde el principio (${etiquetaPeriodo.value})`
+      : 'desde el principio'
+    : `entre el ${etiquetaPeriodo.value}`,
 )
 
-/** Lo que tocaba trabajar en el periodo, según el horario del taller. */
-const previstoPorPersona = computed(
-  () => minutosPrevistosEnRango(periodo.value.desde, periodo.value.hasta) * 60_000,
-)
+/**
+ * Lo que tocaba trabajar en el periodo, según el horario del taller. En "Todo
+ * el histórico" se cuenta desde el primer registro: antes de eso no había ni
+ * app ni horas que esperar.
+ */
+const previstoPorPersona = computed(() => {
+  const ini = inicioReal.value
+  if (!ini) return 0
+  return minutosPrevistosEnRango(ini, periodo.value.hasta) * 60_000
+})
 
 function nombreUsuario(id: string) {
   const u = users.value.find((x) => x.id === id)
@@ -197,31 +245,58 @@ const grupos = computed<Grupo[]>(() => {
 const totalGeneral = computed(() => grupos.value.reduce((s, g) => s + g.total, 0))
 const mayor = computed(() => Math.max(1, ...grupos.value.map((g) => g.total)))
 
-async function cargar() {
-  loading.value = true
-  error.value = ''
+/**
+ * Supabase no devuelve más de mil filas por petición. Con "Esta semana" eso no
+ * se roza ni de lejos, pero "Todo el histórico" acabará pasándose, y entonces
+ * el total saldría corto sin avisar de nada. Así que se pide por páginas hasta
+ * que llegue una a medias, que es la última.
+ */
+const PAGINA = 1000
 
+async function traerHoras(): Promise<{ data: TimeEntry[]; error: { message: string } | null }> {
   // El día de "hasta" cuenta entero: se pide hasta el principio del siguiente.
   const finExclusivo = new Date(periodo.value.hasta)
   finExclusivo.setHours(0, 0, 0, 0)
   finExclusivo.setDate(finExclusivo.getDate() + 1)
-  const inicio = new Date(periodo.value.desde)
-  inicio.setHours(0, 0, 0, 0)
 
-  let consulta = supabase
-    .from('time_entries')
-    .select('*')
-    .not('ended_at', 'is', null)
-    .gte('started_at', inicio.toISOString())
-    .lt('started_at', finExclusivo.toISOString())
-    .order('started_at', { ascending: false })
+  const todas: TimeEntry[] = []
+  for (let pagina = 0; ; pagina += 1) {
+    // La consulta se arma de cero en cada vuelta: el constructor de Supabase
+    // no se puede reutilizar una vez lanzado.
+    let consulta = supabase
+      .from('time_entries')
+      .select('*')
+      .not('ended_at', 'is', null)
+      .lt('started_at', finExclusivo.toISOString())
+      .order('started_at', { ascending: false })
+      .range(pagina * PAGINA, pagina * PAGINA + PAGINA - 1)
 
-  if (!esAdmin.value) {
-    consulta = consulta.eq('user_id', session.value?.user.id ?? '')
+    // En "Todo el histórico" no hay tope por abajo: entra todo lo que haya.
+    if (periodo.value.desde) {
+      const inicio = new Date(periodo.value.desde)
+      inicio.setHours(0, 0, 0, 0)
+      consulta = consulta.gte('started_at', inicio.toISOString())
+    }
+    if (!esAdmin.value) {
+      consulta = consulta.eq('user_id', session.value?.user.id ?? '')
+    }
+
+    const { data, error: fallo } = await consulta
+    if (fallo) return { data: [], error: fallo }
+    todas.push(...(data ?? []))
+    // Una página incompleta es la última. Y un tope por si acaso: sin él, un
+    // error raro que devolviera siempre lo mismo dejaría la app dando vueltas.
+    if ((data?.length ?? 0) < PAGINA || pagina >= 50) break
   }
+  return { data: todas, error: null }
+}
+
+async function cargar() {
+  loading.value = true
+  error.value = ''
 
   const [te, pe, pr, pd] = await Promise.all([
-    consulta,
+    traerHoras(),
     // La lista de personas solo hace falta para poder poner nombres a las
     // horas de otros, cosa que solo hace el administrador.
     esAdmin.value ? supabase.from('profiles').select('*') : Promise.resolve({ data: [], error: null }),
@@ -264,8 +339,8 @@ onMounted(cargar)
     :title="esAdmin ? 'Horas del equipo' : 'Mis horas'"
     :subtitle="
       esAdmin
-        ? `Lo que ha imputado cada uno entre el ${etiquetaPeriodo}.`
-        : `Lo que has imputado tú entre el ${etiquetaPeriodo}.`
+        ? `Lo que ha imputado cada uno ${periodoEnFrase}.`
+        : `Lo que has imputado tú ${periodoEnFrase}.`
     "
   />
 
@@ -324,8 +399,20 @@ onMounted(cargar)
   <EmptyState
     v-else-if="entries.length === 0"
     icon="barras"
-    :title="esAdmin ? 'No hay horas imputadas en este periodo' : 'No has imputado horas en este periodo'"
-    text="Prueba a cambiar las fechas de arriba."
+    :title="
+      rango === 'todo'
+        ? esAdmin
+          ? 'Todavía no hay ninguna hora imputada'
+          : 'Todavía no has imputado ninguna hora'
+        : esAdmin
+          ? 'No hay horas imputadas en este periodo'
+          : 'No has imputado horas en este periodo'
+    "
+    :text="
+      rango === 'todo'
+        ? 'Aquí saldrá todo lo apuntado desde el primer día, en cuanto haya algo.'
+        : 'Prueba a cambiar las fechas de arriba.'
+    "
   />
 
   <template v-else>
@@ -350,7 +437,9 @@ onMounted(cargar)
       <div v-if="agruparPor === 'persona' || !esAdmin" class="panel total">
         <span class="cifra-eti">{{ esAdmin ? 'Previstas por persona' : 'Previstas' }}</span>
         <span class="total-num mono">{{ formatDuration(previstoPorPersona) }}</span>
-        <span class="small dim">según el horario del taller</span>
+        <span class="small dim">
+          según el horario del taller<template v-if="rango === 'todo'">, desde el primer registro</template>
+        </span>
       </div>
     </section>
 
