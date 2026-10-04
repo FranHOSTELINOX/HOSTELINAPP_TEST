@@ -206,3 +206,30 @@ jobs:
             echo "::warning::Todavía no sirve datos (HTTP $codigo). Si acabas de pulsar Resume, dale unos minutos y vuelve a lanzar esto."
           fi
 
+      - name: Contar lo que hay guardado
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "Sin SUPABASE_DB_URL no se puede contar."
+            exit 0
+          fi
+          # Solo cuentas. Aquí no se imprime ni un nombre ni un correo ni una
+          # hora concreta: es para saber que los datos siguen ahí, no para
+          # sacarlos por el log de un sitio público.
+          set +e
+          timeout 30 psql "$DB_URL" -tA -F' | ' -c "
+            select 'personas',        count(*) from public.profiles
+            union all
+            select 'clientes',        count(*) from public.projects
+            union all
+            select 'productos',       count(*) from public.products
+            union all
+            select 'ratos apuntados', count(*) from public.time_entries
+            union all
+            select 'avisos',          count(*) from public.notices;
+          " 2>&1 | sed -E 's#://[^@]*@#://<oculto>@#g'
+          codigo=${PIPESTATUS[0]}
+          set -e
+          [ "$codigo" = "0" ] && echo "Los datos siguen en su sitio." || echo "::warning::No se pudieron contar (psql salió con $codigo)."
+
