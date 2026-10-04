@@ -1,0 +1,125 @@
+name: Despertar el proyecto de Supabase
+
+# Para cuando la app deja de funcionar porque Supabase ha pausado el
+# proyecto. Ese estado no se ve desde fuera: la dirección del proyecto
+# simplemente deja de existir en internet ("Could not resolve host"), así
+# que ni la app ni el ping de keepalive pueden decir qué pasa.
+#
+# Esto pregunta a la API de administración de Supabase en qué estado está
+# el proyecto y, si está pausado, pide que lo restauren. Hace falta el
+# secret SUPABASE_ACCESS_TOKEN, el mismo que usa deploy-functions.yml.
+#
+# Se lanza a mano (Actions > este workflow > Run workflow). No va en el
+# cron de keepalive a propósito: restaurar un proyecto es una operación
+# gorda y conviene que quede claro quién y cuándo la pidió.
+
+on:
+  workflow_dispatch:
+    inputs:
+      solo_mirar:
+        description: >-
+          true para solo consultar el estado sin tocar nada. Déjalo en false
+          para que, si está pausado, pida la restauración.
+        required: false
+        default: "false"
+
+jobs:
+  despertar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar que hay token
+        id: token
+        run: |
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "::error::Falta el secret SUPABASE_ACCESS_TOKEN. Genéralo en https://supabase.com/dashboard/account/tokens y guárdalo en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "hay=true" >> "$GITHUB_OUTPUT"
+
+      - name: Ver en qué estado está el proyecto
+        id: estado
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF || 'zpacoqndlcirbsxguxvi' }}
+        run: |
+          set -o pipefail
+          # -w para quedarnos con el código HTTP: un 401 (token caducado) hay
+          # que distinguirlo de un 200 con la lista vacía.
+          codigo=$(curl --silent --show-error \
+            -o respuesta.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" \
+            https://api.supabase.com/v1/projects) || true
+
+          echo "La API contestó HTTP $codigo"
+
+          if [ "$codigo" = "401" ] || [ "$codigo" = "403" ]; then
+            echo "::error::Supabase rechaza el token (HTTP $codigo). Está caducado o revocado. Genera uno nuevo en https://supabase.com/dashboard/account/tokens y actualiza el secret SUPABASE_ACCESS_TOKEN."
+            exit 1
+          fi
+
+          if [ "$codigo" != "200" ]; then
+            echo "::error::Respuesta inesperada de la API de Supabase (HTTP $codigo)."
+            # El cuerpo de error no lleva credenciales, así que se puede ver.
+            head -c 500 respuesta.json || true
+            exit 1
+          fi
+
+          echo "Proyectos que ve esta cuenta:"
+          jq -r '.[] | "  - \(.id)  \(.name)  estado=\(.status)  región=\(.region)"' respuesta.json
+
+          estado=$(jq -r --arg ref "$REF" '.[] | select(.id == $ref) | .status' respuesta.json)
+          if [ -z "$estado" ]; then
+            echo "::error::En esta cuenta no aparece ningún proyecto con el ref $REF. O se ha borrado, o el token pertenece a otra cuenta u organización."
+            exit 1
+          fi
+
+          echo "El proyecto $REF está en estado: $estado"
+          echo "estado=$estado" >> "$GITHUB_OUTPUT"
+
+      - name: Pedir la restauración si está pausado
+        if: steps.estado.outputs.estado != 'ACTIVE_HEALTHY' && github.event.inputs.solo_mirar != 'true'
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF || 'zpacoqndlcirbsxguxvi' }}
+          ESTADO: ${{ steps.estado.outputs.estado }}
+        run: |
+          set -o pipefail
+          echo "Estado actual: $ESTADO. Pidiendo la restauración..."
+          codigo=$(curl --silent --show-error -X POST \
+            -o restore.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            "https://api.supabase.com/v1/projects/$REF/restore") || true
+
+          echo "La API contestó HTTP $codigo"
+          head -c 500 restore.json || true
+          echo
+
+          case "$codigo" in
+            2*) echo "Restauración pedida. Supabase tarda unos minutos en levantarlo." ;;
+            *)  echo "::error::No se pudo pedir la restauración (HTTP $codigo)." ; exit 1 ;;
+          esac
+
+      - name: Esperar a que vuelva a responder
+        if: steps.estado.outputs.estado != 'ACTIVE_HEALTHY' && github.event.inputs.solo_mirar != 'true'
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL || 'https://zpacoqndlcirbsxguxvi.supabase.co' }}
+          ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYWNvcW5kbGNpcmJzeGd1eHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMzY2MDUsImV4cCI6MjEwMjgxMjYwNX0.6OOq5y0cyuZDtcK_8pZ4Qy26kL6TRaxSruJdeVA0Sis' }}
+        run: |
+          # Hasta 10 minutos, mirando cada 20 s. Lo que de verdad confirma que
+          # está viva es que la app pueda leer una tabla, no que la API de
+          # administración diga que sí.
+          for i in $(seq 1 30); do
+            codigo=$(curl --silent --show-error -o /dev/null -w '%{http_code}' \
+              "$URL/rest/v1/profiles?select=id&limit=1" \
+              -H "apikey: $ANON" \
+              -H "Authorization: Bearer $ANON") || codigo="000"
+            echo "intento $i: HTTP $codigo"
+            if [ "$codigo" = "200" ]; then
+              echo "La base de datos vuelve a responder. La app ya funciona."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::warning::Todavía no responde. Suele tardar unos minutos más; vuelve a lanzar este workflow con solo_mirar=true para ver el estado."
