@@ -123,3 +123,50 @@ jobs:
             sleep 20
           done
           echo "::warning::Todavía no responde. Suele tardar unos minutos más; vuelve a lanzar este workflow con solo_mirar=true para ver el estado."
+
+  # Este trabajo va aparte y no depende del anterior, para que se ejecute
+  # aunque el token de administración esté caducado. Usa SUPABASE_DB_URL,
+  # que es la credencial que sí funciona (la de las migraciones), y sirve
+  # para distinguir "pausado" de "borrado" de "solo se ha roto la API".
+  diagnostico:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirar si el servidor de la base de datos sigue en pie
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF || 'zpacoqndlcirbsxguxvi' }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "No hay secret SUPABASE_DB_URL, no se puede comprobar la base de datos."
+            exit 0
+          fi
+
+          # Del URL solo se saca el host y el puerto. La contraseña NUNCA se
+          # imprime: va dentro de $DB_URL y de ahí no sale.
+          host=$(python3 -c "import os,urllib.parse as u; p=u.urlparse(os.environ['DB_URL']); print(p.hostname or '')")
+          puerto=$(python3 -c "import os,urllib.parse as u; p=u.urlparse(os.environ['DB_URL']); print(p.port or 5432)")
+          echo "Host de la base de datos: $host:$puerto"
+
+          echo "--- ¿resuelve ese host? ---"
+          if getent hosts "$host" > /dev/null; then
+            echo "SÍ resuelve: $(getent hosts "$host" | head -1)"
+          else
+            echo "NO resuelve. El proyecto no existe o está pausado."
+          fi
+
+          echo "--- ¿resuelve la dirección de la API? ---"
+          if getent hosts "$REF.supabase.co" > /dev/null; then
+            echo "SÍ resuelve $REF.supabase.co"
+          else
+            echo "NO resuelve $REF.supabase.co"
+          fi
+
+          echo "--- ¿acepta conexión la base de datos? ---"
+          # El error de psql puede llevar el host, que no es secreto, pero por
+          # si acaso se filtra cualquier cosa con pinta de usuario:contraseña@.
+          if timeout 30 psql "$DB_URL" -tAc "select 'viva', now()" 2>&1 | sed -E 's#://[^@]*@#://<oculto>@#g'; then
+            echo "La base de datos CONTESTA."
+          else
+            echo "La base de datos NO contesta."
+          fi
+
