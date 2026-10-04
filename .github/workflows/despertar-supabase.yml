@@ -181,3 +181,28 @@ jobs:
             echo "conoce el proyecto: está pausado o ya no existe."
           fi
 
+      - name: Probar lo que hace la app de verdad
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL || 'https://zpacoqndlcirbsxguxvi.supabase.co' }}
+          ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYWNvcW5kbGNpcmJzeGd1eHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMzY2MDUsImV4cCI6MjEwMjgxMjYwNX0.6OOq5y0cyuZDtcK_8pZ4Qy26kL6TRaxSruJdeVA0Sis' }}
+        run: |
+          # Esta es la prueba que importa: leer una tabla con el anon key, que
+          # es exactamente lo que hace la app al arrancar. Que la dirección
+          # resuelva no basta: durante un arranque resuelve antes de servir.
+          echo "Leyendo una fila de profiles, como hace la app..."
+          codigo=$(curl --silent --show-error --max-time 20 \
+            -o cuerpo.txt -w '%{http_code}' \
+            "$URL/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: $ANON" \
+            -H "Authorization: Bearer $ANON") || codigo="000"
+
+          echo "HTTP $codigo"
+          head -c 300 cuerpo.txt || true
+          echo
+
+          if [ "$codigo" = "200" ]; then
+            echo "✅ La app puede leer la base de datos. Está funcionando."
+          else
+            echo "::warning::Todavía no sirve datos (HTTP $codigo). Si acabas de pulsar Resume, dale unos minutos y vuelve a lanzar esto."
+          fi
+
