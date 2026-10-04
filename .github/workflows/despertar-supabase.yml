@@ -164,9 +164,20 @@ jobs:
           echo "--- ¿acepta conexión la base de datos? ---"
           # El error de psql puede llevar el host, que no es secreto, pero por
           # si acaso se filtra cualquier cosa con pinta de usuario:contraseña@.
-          if timeout 30 psql "$DB_URL" -tAc "select 'viva', now()" 2>&1 | sed -E 's#://[^@]*@#://<oculto>@#g'; then
+          #
+          # Ojo con el if: al pasar psql por una tubería, el estado que se
+          # mira sería el de sed, que siempre va bien. Por eso se guarda el
+          # de psql aparte con PIPESTATUS.
+          set +e
+          timeout 30 psql "$DB_URL" -tAc "select 'viva', now()" 2>&1 \
+            | sed -E 's#://[^@]*@#://<oculto>@#g'
+          codigo=${PIPESTATUS[0]}
+          set -e
+          if [ "$codigo" = "0" ]; then
             echo "La base de datos CONTESTA."
           else
-            echo "La base de datos NO contesta."
+            echo "La base de datos NO contesta (psql salió con $codigo)."
+            echo "Si el error dice 'tenant/user ... not found', el pooler no"
+            echo "conoce el proyecto: está pausado o ya no existe."
           fi
 
